@@ -36,7 +36,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   createProject: async (name, repoPath) => {
     const project = await api.createProject({ name, repo_path: repoPath })
-    set((s) => ({ projects: [...s.projects, project] }))
+    // Create a default page
+    const page = await api.createPage(project.id, { name: 'Page 1' })
+    set((s) => ({
+      projects: [...s.projects, project],
+      currentProject: project,
+      pages: [page],
+      currentPage: page,
+    }))
     return project
   },
 

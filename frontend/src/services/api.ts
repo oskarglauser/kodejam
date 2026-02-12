@@ -43,7 +43,7 @@ export const api = {
 
   // Builds
   getBuild: (buildId: string) =>
-    request<import('../types').Build>(`/builds/${buildId}`),
+    request<import('../types').Build>(`/build/${buildId}`),
   listBuilds: (pageId: string) =>
     request<import('../types').Build[]>(`/pages/${pageId}/builds`),
 

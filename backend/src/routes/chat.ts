@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
-import { spawn, ChildProcessWithoutNullStreams } from 'child_process'
+import { spawn, type ChildProcessWithoutNullStreams } from 'child_process'
 import { v4 as uuid } from 'uuid'
+import { existsSync, mkdirSync } from 'fs'
 import { getDb } from '../db.js'
 
 export const chatRouter = Router()
@@ -19,6 +20,7 @@ interface ChatRequest {
     shapes: ShapeContext[]
     repoPath: string
     pageName: string
+    pageId?: string
   }
 }
 
@@ -46,8 +48,7 @@ function buildSystemPrompt(shapes: ShapeContext[], pageName: string): string {
 }
 
 function findClaudeBinary(): string {
-  // Prefer the globally installed binary, fall back to npx
-  return 'claude'
+  return '/Users/oskarglauser/.local/bin/claude'
 }
 
 function spawnClaude(
@@ -61,14 +62,25 @@ function spawnClaude(
     prompt,
     '--output-format',
     'stream-json',
+    '--verbose',
     '--allowedTools',
     allowedTools,
+    '--max-turns',
+    '10',
   ]
 
-  return spawn(bin, args, {
+  // Ensure cwd exists
+  if (!existsSync(cwd)) {
+    mkdirSync(cwd, { recursive: true })
+  }
+
+  const escapedArgs = args.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(' ')
+  const cmd = `${bin} ${escapedArgs} < /dev/null`
+
+  return spawn('bash', ['-c', cmd], {
     cwd,
     env: { ...process.env },
-    stdio: ['pipe', 'pipe', 'pipe'],
+    stdio: ['ignore', 'pipe', 'pipe'],
   })
 }
 
@@ -124,10 +136,15 @@ chatRouter.post('/', (req: Request, res: Response) => {
 
   const child = spawnClaude(fullPrompt, 'Read,Glob,Grep', context.repoPath)
 
+  console.log('[chat] Child spawned, pid:', child.pid)
+  console.log('[chat] Child stdout readable:', child.stdout?.readable)
+  console.log('[chat] Child stderr readable:', child.stderr?.readable)
+
   let assistantResponse = ''
   let buffer = ''
 
   child.stdout.on('data', (chunk: Buffer) => {
+    console.log('[chat] stdout data received, length:', chunk.length)
     buffer += chunk.toString()
 
     // Process complete lines
@@ -165,7 +182,8 @@ chatRouter.post('/', (req: Request, res: Response) => {
     }
   })
 
-  child.on('close', (code) => {
+  child.on('close', (code, signal) => {
+    console.log('[chat] Child closed, code:', code, 'signal:', signal)
     // Save conversation to database
     const updatedMessages = [
       ...existingMessages,
@@ -175,16 +193,20 @@ chatRouter.post('/', (req: Request, res: Response) => {
 
     const shapeIds = (context.shapes || []).map((s) => s.id)
 
-    if (isNewThread) {
-      db.prepare(
-        `INSERT INTO ai_threads (id, page_id, shape_ids, messages) VALUES (?, ?, ?, ?)`
-      ).run(
-        currentThreadId,
-        context.pageName || '',
-        JSON.stringify(shapeIds),
-        JSON.stringify(updatedMessages)
-      )
-    } else {
+    if (isNewThread && context.pageId) {
+      try {
+        db.prepare(
+          `INSERT INTO ai_threads (id, page_id, shape_ids, messages) VALUES (?, ?, ?, ?)`
+        ).run(
+          currentThreadId,
+          context.pageId,
+          JSON.stringify(shapeIds),
+          JSON.stringify(updatedMessages)
+        )
+      } catch (e) {
+        // Non-fatal: thread storage failed but response was already sent
+      }
+    } else if (!isNewThread) {
       db.prepare(
         `UPDATE ai_threads SET messages = ?, updated_at = datetime('now') WHERE id = ?`
       ).run(JSON.stringify(updatedMessages), currentThreadId)
@@ -201,8 +223,11 @@ chatRouter.post('/', (req: Request, res: Response) => {
     res.end()
   })
 
-  // Handle client disconnect
-  req.on('close', () => {
+  // Handle client disconnect - use res.on('close') not req.on('close')
+  // req.on('close') fires when the request stream ends (body fully read)
+  // res.on('close') fires when the response connection is actually closed
+  res.on('close', () => {
+    console.log('[chat] Response connection closed')
     if (!child.killed) {
       child.kill('SIGTERM')
     }

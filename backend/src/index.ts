@@ -26,7 +26,7 @@ app.use('/api/projects', projectsRouter)
 app.use('/api/pages', pagesRouter)
 app.use('/api', historyRouter)
 app.use('/api/chat', chatRouter)
-app.use('/api/builds', buildRouter)
+app.use('/api/build', buildRouter)
 app.use('/api/screenshot', screenshotRouter)
 
 app.listen(PORT, () => {

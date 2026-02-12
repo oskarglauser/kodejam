@@ -88,19 +88,21 @@ export class StickyNoteUtil extends ShapeUtil<StickyNoteShape> {
               autoFocus
               defaultValue={text}
               onBlur={(e) => {
+                const newText = e.target.value
                 this.editor.updateShape<StickyNoteShape>({
                   id: shape.id,
                   type: 'sticky-note',
-                  props: { text: e.target.value },
+                  props: { text: newText },
                 })
+                this.editor.setEditingShape(null)
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
                   e.currentTarget.blur()
-                  this.editor.setEditingShape(null)
                 }
                 e.stopPropagation()
               }}
+              onPointerDown={(e) => e.stopPropagation()}
               style={{
                 flex: 1,
                 fontSize: 13,

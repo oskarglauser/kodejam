@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { spawn, ChildProcessWithoutNullStreams } from 'child_process'
 import { v4 as uuid } from 'uuid'
+import { existsSync, mkdirSync } from 'fs'
 import { getDb } from '../db.js'
 import type { Build } from '../types.js'
 
@@ -27,7 +28,7 @@ interface ExecuteRequest {
 }
 
 function findClaudeBinary(): string {
-  return 'claude'
+  return '/Users/oskarglauser/.local/bin/claude'
 }
 
 function spawnClaude(
@@ -41,14 +42,25 @@ function spawnClaude(
     prompt,
     '--output-format',
     'stream-json',
+    '--verbose',
     '--allowedTools',
     allowedTools,
+    '--max-turns',
+    '50',
   ]
 
-  return spawn(bin, args, {
+  // Ensure cwd exists
+  if (!existsSync(cwd)) {
+    mkdirSync(cwd, { recursive: true })
+  }
+
+  const escapedArgs = args.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(' ')
+  const cmd = `${bin} ${escapedArgs} < /dev/null`
+
+  return spawn('bash', ['-c', cmd], {
     cwd,
     env: { ...process.env },
-    stdio: ['pipe', 'pipe', 'pipe'],
+    stdio: ['ignore', 'pipe', 'pipe'],
   })
 }
 
@@ -135,7 +147,7 @@ function streamClaudeProcess(
   })
 
   // Handle client disconnect
-  req.on('close', () => {
+  res.on('close', () => {
     if (!child.killed) {
       child.kill('SIGTERM')
     }
@@ -154,9 +166,14 @@ buildRouter.post('/plan', (req: Request, res: Response) => {
   const buildId = uuid()
 
   // Create build record with status 'planning'
-  db.prepare(
-    `INSERT INTO builds (id, page_id, status, selected_shapes) VALUES (?, ?, 'planning', ?)`
-  ).run(buildId, pageId, JSON.stringify(shapes.map((s) => s.id)))
+  try {
+    db.prepare(
+      `INSERT INTO builds (id, page_id, status, selected_shapes) VALUES (?, ?, 'planning', ?)`
+    ).run(buildId, pageId, JSON.stringify(shapes.map((s) => s.id)))
+  } catch (err: any) {
+    console.error('[build] DB insert error:', err.message)
+    return res.status(500).json({ error: err.message })
+  }
 
   setupSSE(res)
 

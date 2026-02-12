@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef } from 'react'
 import type { Editor } from 'tldraw'
 import { useProjectStore } from '../../stores/projectStore'
+import { api } from '../../services/api'
 
 export function useCanvasPersistence(editor: Editor | null) {
   const currentPage = useProjectStore((s) => s.currentPage)
   const updatePage = useProjectStore((s) => s.updatePage)
   const saveTimer = useRef<ReturnType<typeof setTimeout>>()
+  const historyTimer = useRef<ReturnType<typeof setTimeout>>()
   const isLoadingRef = useRef(false)
 
   // Load snapshot when page changes
@@ -46,14 +48,33 @@ export function useCanvasPersistence(editor: Editor | null) {
     }, 1000)
   }, [editor, currentPage, updatePage])
 
+  // Auto-save history every 5 minutes of activity
+  const saveHistory = useCallback(() => {
+    if (!editor || !currentPage || isLoadingRef.current) return
+    if (historyTimer.current) clearTimeout(historyTimer.current)
+    historyTimer.current = setTimeout(() => {
+      const snapshot = editor.getSnapshot()
+      api.createHistoryEntry(currentPage.id, {
+        snapshot: JSON.stringify(snapshot),
+        description: 'Auto-save',
+      }).catch(() => {})
+    }, 5 * 60 * 1000) // 5 minutes
+  }, [editor, currentPage])
+
   // Listen for store changes
   useEffect(() => {
     if (!editor) return
     const unsub = editor.store.listen(() => {
-      if (!isLoadingRef.current) save()
+      if (!isLoadingRef.current) {
+        save()
+        saveHistory()
+      }
     }, { source: 'user', scope: 'document' })
-    return unsub
-  }, [editor, save])
+    return () => {
+      unsub()
+      if (historyTimer.current) clearTimeout(historyTimer.current)
+    }
+  }, [editor, save, saveHistory])
 
   return { save }
 }

@@ -11,10 +11,11 @@ interface ChatPanelProps {
   selectedShapes: SelectedShape[]
   repoPath: string
   pageName: string
+  pageId: string
   onClose: () => void
 }
 
-export function ChatPanel({ selectedShapes, repoPath, pageName, onClose }: ChatPanelProps) {
+export function ChatPanel({ selectedShapes, repoPath, pageName, pageId, onClose }: ChatPanelProps) {
   const { messages, sendMessage, isStreaming, cancelStream } = useAIChat()
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -38,6 +39,7 @@ export function ChatPanel({ selectedShapes, repoPath, pageName, onClose }: ChatP
       shapes: selectedShapes,
       repoPath,
       pageName,
+      pageId,
     })
     setInput('')
   }

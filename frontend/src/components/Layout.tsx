@@ -19,10 +19,10 @@ export function Layout() {
 
   const handleBuild = useCallback(
     (shapes: Array<{ id: string; type: string; label: string; description?: string }>) => {
-      if (!currentProject) return
-      build.startPlan(shapes, currentProject.repo_path)
+      if (!currentProject || !currentPage) return
+      build.startPlan(shapes, currentProject.repo_path, currentPage.id)
     },
-    [currentProject, build]
+    [currentProject, currentPage, build]
   )
 
   const handleBuildApprove = useCallback(() => {
@@ -55,6 +55,7 @@ export function Layout() {
               selectedShapes={selectedShapes}
               repoPath={currentProject.repo_path}
               pageName={currentPage.name}
+              pageId={currentPage.id}
               onClose={() => setChatOpen(false)}
             />
           )}

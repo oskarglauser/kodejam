@@ -85,6 +85,7 @@ export function useBuild() {
     async (
       shapes: Array<{ id: string; type: string; label?: string; props?: Record<string, unknown> }>,
       repoPath: string,
+      pageId?: string,
     ) => {
       setStatus('planning')
       setPlan(null)
@@ -101,7 +102,7 @@ export function useBuild() {
         const res = await fetch('/api/build/plan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ shapes, repoPath }),
+          body: JSON.stringify({ pageId, shapes, repoPath }),
           signal: controller.signal,
         })
 
