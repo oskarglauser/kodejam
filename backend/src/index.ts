@@ -1,4 +1,5 @@
 import express from 'express'
+import path from 'path'
 import cors from 'cors'
 import { runMigrations } from './db.js'
 import { projectsRouter, pagesRouter } from './routes/projects.js'
@@ -28,6 +29,21 @@ app.use('/api', historyRouter)
 app.use('/api/chat', chatRouter)
 app.use('/api/build', buildRouter)
 app.use('/api/screenshot', screenshotRouter)
+
+// Serve saved screenshot files from any repo's .kodejam/screenshots/ directory
+app.get('/api/screenshots/:filename', (req, res) => {
+  const { filename } = req.params
+  const repoPath = req.query.repo as string
+  if (!repoPath || !filename) {
+    return res.status(400).json({ error: 'repo query param and filename are required' })
+  }
+  const filePath = path.join(repoPath, '.kodejam', 'screenshots', filename)
+  res.sendFile(filePath, (err) => {
+    if (err) {
+      res.status(404).json({ error: 'Screenshot not found' })
+    }
+  })
+})
 
 app.listen(PORT, () => {
   console.log(`Kodejam backend running on http://localhost:${PORT}`)

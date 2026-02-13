@@ -2,9 +2,20 @@ import { useState, useCallback, useRef } from 'react'
 import type { ChatMessage } from '../../../types'
 
 interface ChatContext {
-  shapes: Array<{ id: string; type: string; label?: string; props?: Record<string, unknown> }>
+  shapes: Array<{ id: string; type: string; label?: string; description?: string; imageUrl?: string; props?: Record<string, unknown> }>
   repoPath: string
   pageName: string
+  pageId: string
+  devUrl?: string
+}
+
+export interface ScreenshotEvent {
+  url: string
+  description: string
+  imageUrl: string
+  width: number
+  height: number
+  filePath?: string
 }
 
 interface SSEEvent {
@@ -16,11 +27,37 @@ interface SSEEvent {
   [key: string]: unknown
 }
 
-export function useAIChat() {
+export function useAIChat(onScreenshot?: (screenshot: ScreenshotEvent) => void, onScreenshotsStart?: () => void) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
+  const [isCapturingScreenshots, setIsCapturingScreenshots] = useState(false)
   const [threadId, setThreadId] = useState<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+
+  const loadThread = useCallback(async (pageId: string) => {
+    try {
+      const res = await fetch(`/api/chat/threads?pageId=${encodeURIComponent(pageId)}`)
+      if (!res.ok) return
+      const thread = await res.json()
+      if (thread && thread.messages) {
+        const parsed: ChatMessage[] = JSON.parse(thread.messages)
+        if (parsed.length > 0) {
+          setMessages(parsed.map((m) => ({
+            ...m,
+            timestamp: m.timestamp || new Date().toISOString(),
+          })))
+          setThreadId(thread.id)
+        }
+      }
+    } catch {
+      // Thread loading is non-fatal
+    }
+  }, [])
+
+  const clearMessages = useCallback(() => {
+    setMessages([])
+    setThreadId(null)
+  }, [])
 
   const sendMessage = useCallback(
     async (message: string, context: ChatContext) => {
@@ -50,9 +87,13 @@ export function useAIChat() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             message,
-            shapes: context.shapes,
-            repoPath: context.repoPath,
-            pageName: context.pageName,
+            context: {
+              shapes: context.shapes,
+              repoPath: context.repoPath,
+              pageName: context.pageName,
+              pageId: context.pageId,
+              devUrl: context.devUrl,
+            },
             threadId,
           }),
           signal: controller.signal,
@@ -98,6 +139,23 @@ export function useAIChat() {
 
               try {
                 const event: SSEEvent = JSON.parse(data)
+
+                // Handle screenshot status
+                if (event.type === 'screenshot_status') {
+                  setIsCapturingScreenshots(true)
+                  if (onScreenshotsStart) onScreenshotsStart()
+                  continue
+                }
+
+                // Handle screenshot events
+                if (event.type === 'screenshot') {
+                  setIsCapturingScreenshots(false)
+                  if (onScreenshot) {
+                    onScreenshot(event as unknown as ScreenshotEvent)
+                  }
+                  continue
+                }
+
                 const text = extractText(event)
                 if (text) {
                   accumulated += text
@@ -116,7 +174,7 @@ export function useAIChat() {
                 }
 
                 // Extract thread ID if provided
-                if (event.type === 'thread_id' && typeof event.threadId === 'string') {
+                if (event.type === 'thread' && typeof event.threadId === 'string') {
                   setThreadId(event.threadId)
                 }
               } catch {
@@ -148,10 +206,11 @@ export function useAIChat() {
         })
       } finally {
         setIsStreaming(false)
+        setIsCapturingScreenshots(false)
         abortControllerRef.current = null
       }
     },
-    [threadId],
+    [threadId, onScreenshot, onScreenshotsStart],
   )
 
   const cancelStream = useCallback(() => {
@@ -164,20 +223,16 @@ export function useAIChat() {
     messages,
     sendMessage,
     isStreaming,
+    isCapturingScreenshots,
     threadId,
     cancelStream,
+    clearMessages,
+    loadThread,
   }
 }
 
 /**
  * Extract text content from various Claude Code SDK streaming event formats.
- *
- * The SSE stream can emit events in several shapes:
- *  - { type: "content_block_delta", delta: { type: "text_delta", text: "..." } }
- *  - { type: "result", content: [{ type: "text", text: "..." }] }
- *  - { type: "text", text: "..." }
- *  - { type: "assistant", content: "..." }
- *  - { text: "..." }  (simple passthrough from backend)
  */
 function extractText(event: SSEEvent): string {
   // content_block_delta from Anthropic streaming API
@@ -196,6 +251,17 @@ function extractText(event: SSEEvent): string {
   // Simple text event
   if (event.type === 'text' && typeof event.text === 'string') {
     return event.text
+  }
+
+  // Assistant message with content array (Claude Code CLI stream-json format)
+  if (event.type === 'assistant' && (event as any).message?.content) {
+    const content = (event as any).message.content
+    if (Array.isArray(content)) {
+      return content
+        .filter((block: any) => block.type === 'text' && block.text)
+        .map((block: any) => block.text)
+        .join('')
+    }
   }
 
   // Assistant message with direct content string

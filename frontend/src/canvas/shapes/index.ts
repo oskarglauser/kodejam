@@ -1,3 +1,3 @@
-export { WireframeBoxUtil, type WireframeBoxShape } from './WireframeBoxUtil'
-export { StickyNoteUtil, type StickyNoteShape } from './StickyNoteUtil'
-export { ScreenshotUtil, type ScreenshotShape } from './ScreenshotUtil'
+// Shape types are now handled via Excalidraw's customData property on standard elements
+// See Canvas.tsx for wireframe-box and sticky-note creation helpers
+export {}

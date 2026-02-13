@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Project, Page } from '../types'
+import type { Project, Page, ProjectSettings } from '../types'
 import { api } from '../services/api'
 
 interface ProjectStore {
@@ -10,8 +10,9 @@ interface ProjectStore {
   loading: boolean
 
   loadProjects: () => Promise<void>
-  createProject: (name: string, repoPath: string) => Promise<Project>
+  createProject: (name: string, repoPath: string, devUrl?: string) => Promise<Project>
   setCurrentProject: (project: Project) => void
+  updateProject: (id: string, data: { name?: string; settings?: ProjectSettings }) => Promise<void>
   deleteProject: (id: string) => Promise<void>
 
   loadPages: (projectId: string) => Promise<void>
@@ -34,8 +35,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set({ projects, loading: false })
   },
 
-  createProject: async (name, repoPath) => {
-    const project = await api.createProject({ name, repo_path: repoPath })
+  createProject: async (name, repoPath, devUrl?) => {
+    const project = await api.createProject({ name, repo_path: repoPath, dev_url: devUrl })
     // Create a default page
     const page = await api.createPage(project.id, { name: 'Page 1' })
     set((s) => ({
@@ -49,6 +50,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   setCurrentProject: (project) => {
     set({ currentProject: project, pages: [], currentPage: null })
+  },
+
+  updateProject: async (id, data) => {
+    const updated = await api.updateProject(id, data)
+    set((s) => ({
+      projects: s.projects.map((p) => (p.id === id ? updated : p)),
+      currentProject: s.currentProject?.id === id ? updated : s.currentProject,
+    }))
   },
 
   deleteProject: async (id) => {

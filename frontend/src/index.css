@@ -6,3 +6,18 @@ html, body, #root {
   height: 100%;
   margin: 0;
 }
+
+/* Excalidraw canvas background */
+.excalidraw {
+  --color-surface-lowest: var(--kodejam-canvas-bg, #f5f5f4) !important;
+}
+
+/* Hide Excalidraw's default UI — we use our own toolbar */
+.excalidraw .App-menu,
+.excalidraw .App-toolbar,
+.excalidraw .HintViewer,
+.excalidraw .layer-ui__wrapper__top-right,
+.excalidraw .layer-ui__wrapper__footer-left,
+.excalidraw .footer-center {
+  display: none !important;
+}

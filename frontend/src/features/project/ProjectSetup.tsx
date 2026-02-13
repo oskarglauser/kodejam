@@ -6,6 +6,7 @@ export function ProjectSetup() {
   const { projects, loadProjects, createProject, deleteProject, loading } = useProjectStore()
   const [name, setName] = useState('')
   const [repoPath, setRepoPath] = useState('')
+  const [devUrl, setDevUrl] = useState('')
   const [creating, setCreating] = useState(false)
   const navigate = useNavigate()
 
@@ -15,7 +16,7 @@ export function ProjectSetup() {
 
   const handleCreate = async () => {
     if (!name.trim() || !repoPath.trim()) return
-    const project = await createProject(name.trim(), repoPath.trim())
+    const project = await createProject(name.trim(), repoPath.trim(), devUrl.trim() || undefined)
     navigate(`/project/${project.id}`)
   }
 
@@ -72,6 +73,13 @@ export function ProjectSetup() {
               placeholder="Path to git repo (e.g. /Users/you/projects/myapp)"
               value={repoPath}
               onChange={(e) => setRepoPath(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md mb-3 focus:outline-none focus:border-blue-400"
+            />
+            <input
+              type="text"
+              placeholder="Dev server URL (e.g. http://localhost:3000)"
+              value={devUrl}
+              onChange={(e) => setDevUrl(e.target.value)}
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md mb-4 focus:outline-none focus:border-blue-400"
             />
             <div className="flex gap-2">

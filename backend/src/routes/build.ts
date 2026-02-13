@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express'
 import { spawn, ChildProcessWithoutNullStreams } from 'child_process'
 import { v4 as uuid } from 'uuid'
-import { existsSync, mkdirSync } from 'fs'
+import { existsSync, mkdirSync, writeFileSync } from 'fs'
+import path from 'path'
 import { getDb } from '../db.js'
 import type { Build } from '../types.js'
 
@@ -12,6 +13,7 @@ interface ShapeInfo {
   type: string
   label: string
   description?: string
+  imageUrl?: string
   connections?: Array<{ from: string; to: string; label?: string }>
 }
 
@@ -62,6 +64,39 @@ function spawnClaude(
     env: { ...process.env },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
+}
+
+function saveScreenshotsToDisk(
+  shapes: ShapeInfo[],
+  repoPath: string
+): Array<{ shapeId: string; label: string; filePath: string }> {
+  const screenshotShapes = shapes.filter((s) => s.type === 'screenshot' && s.imageUrl)
+  if (screenshotShapes.length === 0) return []
+
+  const screenshotsDir = path.join(repoPath, '.kodejam', 'screenshots')
+  if (!existsSync(screenshotsDir)) {
+    mkdirSync(screenshotsDir, { recursive: true })
+  }
+
+  const saved: Array<{ shapeId: string; label: string; filePath: string }> = []
+
+  for (const shape of screenshotShapes) {
+    // imageUrl might be a data URL (base64) or a file path
+    if (shape.imageUrl!.startsWith('data:image/')) {
+      const base64Data = shape.imageUrl!.split(',')[1]
+      if (base64Data) {
+        const filename = `build-screenshot-${shape.id}-${Date.now()}.png`
+        const filePath = path.join(screenshotsDir, filename)
+        writeFileSync(filePath, Buffer.from(base64Data, 'base64'))
+        saved.push({ shapeId: shape.id, label: shape.label, filePath })
+      }
+    } else if (shape.imageUrl!.startsWith('/')) {
+      // Already a file path on disk
+      saved.push({ shapeId: shape.id, label: shape.label, filePath: shape.imageUrl! })
+    }
+  }
+
+  return saved
 }
 
 function buildShapeDescription(shapes: ShapeInfo[]): string {
@@ -180,13 +215,33 @@ buildRouter.post('/plan', (req: Request, res: Response) => {
   // Send build ID immediately
   res.write(`data: ${JSON.stringify({ type: 'build', buildId })}\n\n`)
 
+  // Save any screenshot shapes to disk so Claude can read them
+  const savedScreenshots = saveScreenshotsToDisk(shapes, repoPath)
+
   const shapeDesc = buildShapeDescription(shapes)
 
-  const prompt = [
+  const promptLines = [
     `You are an expert software architect and developer. Analyze the following UI component design from a visual canvas and create a detailed build plan.`,
     '',
     `Canvas shapes and their relationships:`,
     shapeDesc,
+  ]
+
+  // Add screenshot context if any were saved
+  if (savedScreenshots.length > 0) {
+    promptLines.push(
+      '',
+      `The following annotated screenshots from the running app are included. The user may have drawn annotations (arrows, circles, sticky notes) over them to indicate desired changes:`,
+    )
+    for (const ss of savedScreenshots) {
+      promptLines.push(`  - "${ss.label}": Read the image at ${ss.filePath} to see the current state and any annotations`)
+    }
+    promptLines.push(
+      `Use the Read tool to view these screenshot images and incorporate the visual feedback into your plan.`,
+    )
+  }
+
+  promptLines.push(
     '',
     `Instructions:`,
     `1. First, explore the existing codebase to understand the project structure, tech stack, and conventions.`,
@@ -210,7 +265,9 @@ buildRouter.post('/plan', (req: Request, res: Response) => {
     `}`,
     '',
     `Be thorough but practical. Focus on producing working code.`,
-  ].join('\n')
+  )
+
+  const prompt = promptLines.join('\n')
 
   const child = spawnClaude(prompt, 'Read,Glob,Grep', repoPath)
 

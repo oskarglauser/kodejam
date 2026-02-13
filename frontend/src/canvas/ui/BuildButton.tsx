@@ -1,19 +1,28 @@
-import { useEditor, useValue } from 'tldraw'
+import { useState, useEffect } from 'react'
+import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types'
 
 interface BuildButtonProps {
-  onBuild: (shapeIds: string[]) => void
+  excalidrawAPI: ExcalidrawImperativeAPI | null
+  onBuild: (elementIds: string[]) => void
 }
 
-export function BuildButton({ onBuild }: BuildButtonProps) {
-  const editor = useEditor()
-  const selectedIds = useValue('selection', () => editor.getSelectedShapeIds(), [editor])
-  const hasSelection = selectedIds.length > 0
+export function BuildButton({ excalidrawAPI, onBuild }: BuildButtonProps) {
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
 
-  if (!hasSelection) return null
+  useEffect(() => {
+    if (!excalidrawAPI) return
+    const unsub = excalidrawAPI.onChange((_elements, appState) => {
+      const ids = Object.keys(appState.selectedElementIds || {})
+      setSelectedIds(ids)
+    })
+    return unsub
+  }, [excalidrawAPI])
+
+  if (selectedIds.length === 0) return null
 
   return (
     <button
-      onClick={() => onBuild(selectedIds as string[])}
+      onClick={() => onBuild(selectedIds)}
       style={{
         position: 'absolute',
         bottom: 64,

@@ -2,8 +2,10 @@ node_modules/
 dist/
 .env
 *.db
+*.db-journal
 *.sqlite
 /tmp/
 .DS_Store
 *.log
 nohup.out
+.kodejam/

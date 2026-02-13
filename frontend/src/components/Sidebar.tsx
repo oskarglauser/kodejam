@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { useProjectStore } from '../stores/projectStore'
 
 export function Sidebar() {
-  const { pages, currentPage, setCurrentPage, createPage, deletePage } = useProjectStore()
+  const { pages, currentPage, setCurrentPage, createPage, deletePage, updatePage } = useProjectStore()
   const [newPageName, setNewPageName] = useState('')
   const [adding, setAdding] = useState(false)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
 
   const handleAddPage = async () => {
     if (!newPageName.trim()) return
@@ -12,6 +14,20 @@ export function Sidebar() {
     setCurrentPage(page)
     setNewPageName('')
     setAdding(false)
+  }
+
+  const startRename = (pageId: string, currentName: string) => {
+    setRenamingId(pageId)
+    setRenameValue(currentName)
+  }
+
+  const handleRename = async () => {
+    if (!renamingId || !renameValue.trim()) {
+      setRenamingId(null)
+      return
+    }
+    await updatePage(renamingId, { name: renameValue.trim() })
+    setRenamingId(null)
   }
 
   return (
@@ -54,17 +70,36 @@ export function Sidebar() {
                 : 'text-gray-600 hover:bg-gray-50'
             }`}
             onClick={() => setCurrentPage(page)}
+            onDoubleClick={() => startRename(page.id, page.name)}
           >
-            <span className="flex-1 truncate">{page.name}</span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                if (confirm(`Delete "${page.name}"?`)) deletePage(page.id)
-              }}
-              className="hidden group-hover:block text-gray-400 hover:text-red-500 text-xs ml-1"
-            >
-              x
-            </button>
+            {renamingId === page.id ? (
+              <input
+                autoFocus
+                type="text"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleRename()
+                  if (e.key === 'Escape') setRenamingId(null)
+                }}
+                onBlur={handleRename}
+                onClick={(e) => e.stopPropagation()}
+                className="flex-1 px-1 py-0 text-sm border border-blue-400 rounded focus:outline-none bg-white"
+              />
+            ) : (
+              <span className="flex-1 truncate">{page.name}</span>
+            )}
+            {renamingId !== page.id && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (confirm(`Delete "${page.name}"?`)) deletePage(page.id)
+                }}
+                className="hidden group-hover:block text-gray-400 hover:text-red-500 text-xs ml-1"
+              >
+                x
+              </button>
+            )}
           </div>
         ))}
         {pages.length === 0 && (

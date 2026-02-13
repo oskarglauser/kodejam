@@ -16,12 +16,17 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const api = {
   // Projects
   listProjects: () => request<import('../types').Project[]>('/projects'),
-  createProject: (data: { name: string; repo_path: string }) =>
+  createProject: (data: { name: string; repo_path: string; dev_url?: string }) =>
     request<import('../types').Project>('/projects', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
   getProject: (id: string) => request<import('../types').Project>(`/projects/${id}`),
+  updateProject: (id: string, data: { name?: string; settings?: import('../types').ProjectSettings }) =>
+    request<import('../types').Project>(`/projects/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
   deleteProject: (id: string) =>
     request<void>(`/projects/${id}`, { method: 'DELETE' }),
 

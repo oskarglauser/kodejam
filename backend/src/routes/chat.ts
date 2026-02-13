@@ -1,7 +1,9 @@
 import { Router, Request, Response } from 'express'
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process'
 import { v4 as uuid } from 'uuid'
-import { existsSync, mkdirSync } from 'fs'
+import { existsSync, mkdirSync, writeFileSync } from 'fs'
+import path from 'path'
+import { chromium } from 'playwright'
 import { getDb } from '../db.js'
 
 export const chatRouter = Router()
@@ -11,6 +13,7 @@ interface ShapeContext {
   type: string
   label: string
   description?: string
+  imageUrl?: string
 }
 
 interface ChatRequest {
@@ -21,10 +24,16 @@ interface ChatRequest {
     repoPath: string
     pageName: string
     pageId?: string
+    devUrl?: string
   }
 }
 
-function buildSystemPrompt(shapes: ShapeContext[], pageName: string): string {
+interface ScreenshotCommand {
+  urls: string[]
+  descriptions?: string[]
+}
+
+function buildSystemPrompt(shapes: ShapeContext[], pageName: string, devUrl?: string): string {
   const shapeDescriptions = shapes
     .map((s) => {
       const desc = s.description ? ` - ${s.description}` : ''
@@ -32,7 +41,7 @@ function buildSystemPrompt(shapes: ShapeContext[], pageName: string): string {
     })
     .join('\n')
 
-  return [
+  const lines = [
     `You are an AI assistant helping design and build a web application.`,
     `The user is working on a canvas page called "${pageName}".`,
     '',
@@ -44,7 +53,27 @@ function buildSystemPrompt(shapes: ShapeContext[], pageName: string): string {
     '',
     `When discussing code, reference specific file paths and line numbers when possible.`,
     `Keep responses concise and focused on what the user asked.`,
-  ].join('\n')
+  ]
+
+  if (devUrl) {
+    lines.push(
+      '',
+      `SCREENSHOT CAPABILITY:`,
+      `The user's app dev server is running at: ${devUrl}`,
+      `When the user asks to see a page, view, screen, flow, or UI of their app, you should:`,
+      `1. Read the codebase to find the relevant routes/paths`,
+      `2. Output a screenshot command as a special JSON block on its own line:`,
+      `   [SCREENSHOT:{"urls":["${devUrl}/path1","${devUrl}/path2"],"descriptions":["Description of page 1","Description of page 2"]}]`,
+      `3. The URLs must be full URLs starting with the dev server base URL above`,
+      `4. Include a brief description for each URL`,
+      `5. After the screenshot command, briefly explain what you found in the codebase about these views`,
+      ``,
+      `Example: If the user says "show me the login page" and you find a /login route:`,
+      `[SCREENSHOT:{"urls":["${devUrl}/login"],"descriptions":["Login page"]}]`,
+    )
+  }
+
+  return lines.join('\n')
 }
 
 function findClaudeBinary(): string {
@@ -84,6 +113,130 @@ function spawnClaude(
   })
 }
 
+function parseScreenshotCommands(text: string): ScreenshotCommand[] {
+  const commands: ScreenshotCommand[] = []
+  const marker = '[SCREENSHOT:'
+
+  let searchFrom = 0
+  while (true) {
+    const idx = text.indexOf(marker, searchFrom)
+    if (idx === -1) break
+
+    const jsonStart = idx + marker.length
+
+    // Find the JSON object by tracking brace/bracket depth
+    let depth = 0
+    let jsonEnd = -1
+    for (let i = jsonStart; i < text.length; i++) {
+      const ch = text[i]
+      if (ch === '{' || ch === '[') depth++
+      if (ch === '}' || ch === ']') depth--
+      if (depth === 0 && ch === '}') {
+        jsonEnd = i + 1
+        break
+      }
+    }
+
+    if (jsonEnd === -1) break
+
+    try {
+      const jsonStr = text.slice(jsonStart, jsonEnd)
+      const parsed = JSON.parse(jsonStr)
+      if (parsed.urls && Array.isArray(parsed.urls) && parsed.urls.length > 0) {
+        commands.push({
+          urls: parsed.urls,
+          descriptions: parsed.descriptions,
+        })
+      }
+    } catch {
+      // Invalid JSON in screenshot command, skip
+    }
+
+    searchFrom = jsonEnd
+  }
+
+  return commands
+}
+
+async function captureScreenshots(
+  commands: ScreenshotCommand[],
+  repoPath: string
+): Promise<Array<{ url: string; description: string; imageUrl: string; width: number; height: number; filePath: string }>> {
+  const results: Array<{ url: string; description: string; imageUrl: string; width: number; height: number; filePath: string }> = []
+
+  // Ensure screenshots directory exists
+  const screenshotsDir = path.join(repoPath, '.kodejam', 'screenshots')
+  if (!existsSync(screenshotsDir)) {
+    mkdirSync(screenshotsDir, { recursive: true })
+  }
+
+  let browser
+  try {
+    browser = await chromium.launch({ headless: true })
+
+    for (const cmd of commands) {
+      for (let i = 0; i < cmd.urls.length; i++) {
+        const url = cmd.urls[i]
+        const description = cmd.descriptions?.[i] || url
+
+        try {
+          const page = await browser.newPage({
+            viewport: { width: 1280, height: 800 },
+          })
+          await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 })
+          await page.waitForTimeout(1000)
+
+          const screenshotBuffer = await page.screenshot({ fullPage: false }) as Buffer
+
+          // Save to disk and serve via HTTP URL
+          const filename = `screenshot-${Date.now()}-${i}.png`
+          const filePath = path.join(screenshotsDir, filename)
+          writeFileSync(filePath, screenshotBuffer)
+
+          const imageUrl = `/api/screenshots/${filename}?repo=${encodeURIComponent(repoPath)}`
+
+          results.push({
+            url,
+            description,
+            imageUrl,
+            width: 1280,
+            height: 800,
+            filePath,
+          })
+
+          await page.close()
+        } catch (err: any) {
+          console.error(`[chat] Screenshot failed for ${url}:`, err.message)
+        }
+      }
+    }
+  } catch (err: any) {
+    console.error('[chat] Browser launch failed:', err.message)
+  } finally {
+    if (browser) {
+      await browser.close()
+    }
+  }
+
+  return results
+}
+
+// GET /threads - Load the most recent thread for a page
+chatRouter.get('/threads', (req: Request, res: Response) => {
+  const pageId = req.query.pageId as string
+  if (!pageId) {
+    return res.status(400).json({ error: 'pageId query param is required' })
+  }
+  const db = getDb()
+  const thread = db.prepare(
+    'SELECT * FROM ai_threads WHERE page_id = ? ORDER BY updated_at DESC LIMIT 1'
+  ).get(pageId)
+  if (!thread) {
+    return res.json(null)
+  }
+  res.json(thread)
+})
+
 // POST / - SSE streaming chat endpoint
 chatRouter.post('/', (req: Request, res: Response) => {
   const { threadId, message, context } = req.body as ChatRequest
@@ -112,9 +265,26 @@ chatRouter.post('/', (req: Request, res: Response) => {
   }
 
   // Build the full prompt with system context and conversation history
-  const systemPrompt = buildSystemPrompt(context.shapes || [], context.pageName || 'Untitled')
+  const systemPrompt = buildSystemPrompt(
+    context.shapes || [],
+    context.pageName || 'Untitled',
+    context.devUrl
+  )
 
-  let fullPrompt = systemPrompt + '\n\n'
+  // Build prompt for screenshot shapes that have imageUrl (annotation flow)
+  let screenshotContext = ''
+  const screenshotShapes = (context.shapes || []).filter(
+    (s) => s.type === 'screenshot' && s.imageUrl
+  )
+  if (screenshotShapes.length > 0) {
+    screenshotContext = '\n\nThe following screenshots from the app are on the canvas. The user may have added annotations (arrows, sticky notes, drawings) over them:\n'
+    for (const shape of screenshotShapes) {
+      screenshotContext += `  - Screenshot "${shape.label || shape.description || 'Untitled'}": image available at ${shape.imageUrl}\n`
+    }
+    screenshotContext += 'If the user references these screenshots or asks you to fix issues shown in them, use the Read tool to view the screenshot images and understand the visual context.\n'
+  }
+
+  let fullPrompt = systemPrompt + screenshotContext + '\n\n'
   if (existingMessages.length > 0) {
     fullPrompt += 'Previous conversation:\n'
     for (const msg of existingMessages) {
@@ -137,14 +307,12 @@ chatRouter.post('/', (req: Request, res: Response) => {
   const child = spawnClaude(fullPrompt, 'Read,Glob,Grep', context.repoPath)
 
   console.log('[chat] Child spawned, pid:', child.pid)
-  console.log('[chat] Child stdout readable:', child.stdout?.readable)
-  console.log('[chat] Child stderr readable:', child.stderr?.readable)
 
   let assistantResponse = ''
   let buffer = ''
+  let clientDisconnected = false
 
   child.stdout.on('data', (chunk: Buffer) => {
-    console.log('[chat] stdout data received, length:', chunk.length)
     buffer += chunk.toString()
 
     // Process complete lines
@@ -168,7 +336,9 @@ chatRouter.post('/', (req: Request, res: Response) => {
         }
 
         // Forward the event to the client
-        res.write(`data: ${JSON.stringify(parsed)}\n\n`)
+        if (!clientDisconnected) {
+          res.write(`data: ${JSON.stringify(parsed)}\n\n`)
+        }
       } catch {
         // Not valid JSON, skip
       }
@@ -177,13 +347,44 @@ chatRouter.post('/', (req: Request, res: Response) => {
 
   child.stderr.on('data', (chunk: Buffer) => {
     const text = chunk.toString().trim()
-    if (text) {
+    if (text && !clientDisconnected) {
       res.write(`data: ${JSON.stringify({ type: 'error', error: text })}\n\n`)
     }
   })
 
-  child.on('close', (code, signal) => {
+  child.on('close', async (code, signal) => {
     console.log('[chat] Child closed, code:', code, 'signal:', signal)
+    console.log('[chat] assistantResponse length:', assistantResponse.length)
+    console.log('[chat] assistantResponse preview:', assistantResponse.slice(0, 500))
+
+    // Check for screenshot commands in the response
+    const screenshotCommands = parseScreenshotCommands(assistantResponse)
+    console.log('[chat] Screenshot commands found:', screenshotCommands.length, JSON.stringify(screenshotCommands))
+
+    if (screenshotCommands.length > 0 && !clientDisconnected) {
+      console.log('[chat] Found screenshot commands, capturing...')
+      res.write(`data: ${JSON.stringify({ type: 'screenshot_status', status: 'capturing' })}\n\n`)
+
+      try {
+        const screenshots = await captureScreenshots(screenshotCommands, context.repoPath)
+
+        for (const screenshot of screenshots) {
+          res.write(`data: ${JSON.stringify({
+            type: 'screenshot',
+            url: screenshot.url,
+            description: screenshot.description,
+            imageUrl: screenshot.imageUrl,
+            width: screenshot.width,
+            height: screenshot.height,
+            filePath: screenshot.filePath,
+          })}\n\n`)
+        }
+      } catch (err: any) {
+        console.error('[chat] Screenshot capture error:', err.message)
+        res.write(`data: ${JSON.stringify({ type: 'error', error: `Screenshot capture failed: ${err.message}` })}\n\n`)
+      }
+    }
+
     // Save conversation to database
     const updatedMessages = [
       ...existingMessages,
@@ -212,22 +413,25 @@ chatRouter.post('/', (req: Request, res: Response) => {
       ).run(JSON.stringify(updatedMessages), currentThreadId)
     }
 
-    res.write(
-      `data: ${JSON.stringify({ type: 'done', threadId: currentThreadId, exitCode: code })}\n\n`
-    )
-    res.end()
+    if (!clientDisconnected) {
+      res.write(
+        `data: ${JSON.stringify({ type: 'done', threadId: currentThreadId, exitCode: code })}\n\n`
+      )
+      res.end()
+    }
   })
 
   child.on('error', (err) => {
-    res.write(`data: ${JSON.stringify({ type: 'error', error: err.message })}\n\n`)
-    res.end()
+    if (!clientDisconnected) {
+      res.write(`data: ${JSON.stringify({ type: 'error', error: err.message })}\n\n`)
+      res.end()
+    }
   })
 
   // Handle client disconnect - use res.on('close') not req.on('close')
-  // req.on('close') fires when the request stream ends (body fully read)
-  // res.on('close') fires when the response connection is actually closed
   res.on('close', () => {
     console.log('[chat] Response connection closed')
+    clientDisconnected = true
     if (!child.killed) {
       child.kill('SIGTERM')
     }

@@ -83,7 +83,7 @@ export function useBuild() {
 
   const startPlan = useCallback(
     async (
-      shapes: Array<{ id: string; type: string; label?: string; props?: Record<string, unknown> }>,
+      shapes: Array<{ id: string; type: string; label?: string; description?: string; imageUrl?: string; props?: Record<string, unknown> }>,
       repoPath: string,
       pageId?: string,
     ) => {

@@ -17,12 +17,13 @@ projectsRouter.get('/', (_req, res) => {
 // Create project
 projectsRouter.post('/', (req, res) => {
   const db = getDb()
-  const { name, repo_path } = req.body
+  const { name, repo_path, dev_url } = req.body
   if (!name || !repo_path) {
     return res.status(400).json({ error: 'name and repo_path are required' })
   }
   const id = uuid()
-  db.prepare('INSERT INTO projects (id, name, repo_path) VALUES (?, ?, ?)').run(id, name, repo_path)
+  const settings = JSON.stringify({ dev_url: dev_url || '' })
+  db.prepare('INSERT INTO projects (id, name, repo_path, settings) VALUES (?, ?, ?, ?)').run(id, name, repo_path, settings)
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(id)
   res.status(201).json(project)
 })
@@ -33,6 +34,42 @@ projectsRouter.get('/:id', (req, res) => {
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id)
   if (!project) return res.status(404).json({ error: 'Project not found' })
   res.json(project)
+})
+
+// Update project
+projectsRouter.patch('/:id', (req, res) => {
+  const db = getDb()
+  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id) as
+    | { id: string; settings: string }
+    | undefined
+  if (!project) return res.status(404).json({ error: 'Project not found' })
+
+  const { name, settings } = req.body
+
+  const updates: string[] = []
+  const values: unknown[] = []
+
+  if (name !== undefined) {
+    updates.push('name = ?')
+    values.push(name)
+  }
+  if (settings !== undefined) {
+    // Merge incoming settings with existing settings
+    let existing: Record<string, unknown> = {}
+    try { existing = JSON.parse(project.settings) } catch {}
+    const merged = { ...existing, ...settings }
+    updates.push('settings = ?')
+    values.push(JSON.stringify(merged))
+  }
+
+  if (updates.length > 0) {
+    updates.push("updated_at = datetime('now')")
+    values.push(req.params.id)
+    db.prepare(`UPDATE projects SET ${updates.join(', ')} WHERE id = ?`).run(...values)
+  }
+
+  const updated = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id)
+  res.json(updated)
 })
 
 // Delete project

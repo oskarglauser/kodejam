@@ -1,3 +1,8 @@
+export interface ProjectSettings {
+  dev_url?: string
+  canvas_color?: string
+}
+
 export interface Project {
   id: string
   name: string

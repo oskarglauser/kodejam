@@ -1,5 +1,11 @@
-// View toggle is handled by the top Toolbar component
-// This file is kept as an empty export to avoid breaking imports
-export function ViewToggle() {
+import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types'
+
+interface ViewToggleProps {
+  excalidrawAPI: ExcalidrawImperativeAPI | null
+}
+
+export function ViewToggle({ excalidrawAPI: _api }: ViewToggleProps) {
+  // View toggle is handled by the top Toolbar component
+  // Excalidraw has built-in zoom controls
   return null
 }
