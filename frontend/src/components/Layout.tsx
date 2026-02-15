@@ -33,6 +33,7 @@ export function Layout() {
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null)
   const screenshotFlowRef = useRef<ScreenshotFlowState | null>(null)
   const [buildDraftMessage, setBuildDraftMessage] = useState('')
+  const [chatWidth, setChatWidth] = useState(380)
 
   const projectSettings = currentProject ? getProjectSettings(currentProject) : {}
   const devUrl = projectSettings.dev_url
@@ -244,6 +245,8 @@ export function Layout() {
             onScreenshotsStart={handleScreenshotsStart}
             initialMessage={buildDraftMessage}
             onInitialMessageConsumed={() => setBuildDraftMessage('')}
+            width={chatWidth}
+            onWidthChange={setChatWidth}
           />
         )}
       </div>

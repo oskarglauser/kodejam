@@ -21,6 +21,8 @@ interface ChatPanelProps {
   onScreenshotsStart?: () => void
   initialMessage?: string
   onInitialMessageConsumed?: () => void
+  width?: number
+  onWidthChange?: (w: number) => void
 }
 
 export function ChatPanel({
@@ -34,6 +36,8 @@ export function ChatPanel({
   onScreenshotsStart,
   initialMessage,
   onInitialMessageConsumed,
+  width = 380,
+  onWidthChange,
 }: ChatPanelProps) {
   const [screenshotPreviews, setScreenshotPreviews] = useState<ScreenshotEvent[]>([])
   const [isBuildPlan, setIsBuildPlan] = useState(false)
@@ -77,6 +81,7 @@ export function ChatPanel({
       initialMessageSentRef.current = true
       setIsBuildPlan(true)
       setScreenshotPreviews([])
+      clearMessages()  // Reset thread so build gets fresh context
       sendMessage(initialMessage, {
         shapes: selectedShapes,
         repoPath,
@@ -86,7 +91,7 @@ export function ChatPanel({
       })
       if (onInitialMessageConsumed) onInitialMessageConsumed()
     }
-  }, [initialMessage, isStreaming, sendMessage, selectedShapes, repoPath, pageName, pageId, devUrl, onInitialMessageConsumed])
+  }, [initialMessage, isStreaming, sendMessage, selectedShapes, repoPath, pageName, pageId, devUrl, onInitialMessageConsumed, clearMessages])
 
   // Focus input on mount
   useEffect(() => {
@@ -209,11 +214,35 @@ export function ChatPanel({
     buildAbortRef.current?.abort()
   }, [])
 
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    const startX = e.clientX
+    const startWidth = width
+    const onMove = (ev: MouseEvent) => {
+      const delta = startX - ev.clientX
+      const newWidth = Math.max(280, Math.min(700, startWidth + delta))
+      onWidthChange?.(newWidth)
+    }
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [width, onWidthChange])
+
   // Show plan approval buttons when: plan is done streaming, it was a build plan, and not currently building
   const showPlanApproval = isBuildPlan && !isStreaming && !isBuilding && messages.length > 0 && messages[messages.length - 1].role === 'assistant'
 
   return (
-    <div style={styles.container}>
+    <div style={{ ...styles.container, width, minWidth: width }}>
+      {/* Resize handle */}
+      {onWidthChange && (
+        <div
+          onMouseDown={handleResizeStart}
+          style={styles.resizeHandle}
+        />
+      )}
       {/* Header */}
       <div style={styles.header}>
         <span style={styles.headerTitle}>AI Chat</span>
@@ -295,6 +324,14 @@ export function ChatPanel({
             </div>
           </div>
         ))}
+
+        {/* Streaming activity indicator — shows while Claude is still working */}
+        {isStreaming && messages.length > 0 && messages[messages.length - 1].role === 'assistant' && messages[messages.length - 1].content && (
+          <div style={styles.thinkingIndicator}>
+            <div style={styles.thinkingDot} />
+            <span>Thinking...</span>
+          </div>
+        )}
 
         {/* Plan approval buttons */}
         {showPlanApproval && (
@@ -463,14 +500,24 @@ const markdownStyles = `
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    width: 380,
-    minWidth: 380,
+    position: 'relative' as const,
     display: 'flex',
     flexDirection: 'column',
     background: '#ffffff',
     borderLeft: '1px solid #e5e7eb',
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  },
+
+  resizeHandle: {
+    position: 'absolute' as const,
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    cursor: 'col-resize',
+    zIndex: 10,
+    background: 'transparent',
   },
 
   // Header
@@ -671,6 +718,25 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 12,
     color: '#16a34a',
     fontWeight: 500,
+  },
+
+  // Thinking indicator (shows while streaming with content)
+  thinkingIndicator: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '4px 8px',
+    fontSize: 11,
+    color: '#9ca3af',
+  },
+  thinkingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: '50%',
+    background: '#9ca3af',
+    animationName: 'buildPulse',
+    animationDuration: '1.5s',
+    animationIterationCount: 'infinite',
   },
 
   // Streaming indicator

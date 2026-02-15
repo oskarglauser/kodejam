@@ -88,8 +88,11 @@ export function useCanvasPersistence(excalidrawAPI: ExcalidrawImperativeAPI | nu
       saveTimer.current = undefined
     }
     dirtyRef.current = false
-    // Use skipFiles to stay under 64KB keepalive limit
-    const snapshotStr = buildSnapshotRef.current({ skipFiles: true })
+    // Include files — if the payload exceeds the 64KB keepalive limit the
+    // request silently fails, which is fine because the previous debounced
+    // save already persisted the full snapshot (with files).  Stripping
+    // files here would overwrite good data with an incomplete snapshot.
+    const snapshotStr = buildSnapshotRef.current()
     if (snapshotStr) {
       // Use keepalive so the request survives page unload
       fetch(`/api/pages/${pageId}`, {

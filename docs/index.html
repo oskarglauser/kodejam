@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kodejam — Sketch to Code</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #1f2937;
+      background: #fafafa;
+      -webkit-font-smoothing: antialiased;
+    }
+    .hero {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 80px 24px 60px;
+      text-align: center;
+    }
+    .logo {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #111827;
+    }
+    .logo span { color: #2563eb; }
+    .tagline {
+      margin-top: 12px;
+      font-size: 18px;
+      color: #6b7280;
+      line-height: 1.5;
+    }
+    .features {
+      margin-top: 48px;
+      display: grid;
+      gap: 24px;
+      text-align: left;
+    }
+    .feature {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 20px 24px;
+    }
+    .feature h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .feature p {
+      font-size: 14px;
+      color: #6b7280;
+      line-height: 1.5;
+    }
+    .cta {
+      margin-top: 40px;
+      display: inline-block;
+      padding: 10px 28px;
+      background: #2563eb;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .cta:hover { background: #1d4ed8; }
+    footer {
+      text-align: center;
+      padding: 32px 24px;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <div class="logo">kode<span>jam</span></div>
+    <p class="tagline">Sketch wireframes on a canvas, then let AI turn them into code.</p>
+
+    <div class="features">
+      <div class="feature">
+        <h3>Draw</h3>
+        <p>Use an Excalidraw canvas to sketch wireframes, drop screenshots, and annotate your ideas.</p>
+      </div>
+      <div class="feature">
+        <h3>Chat</h3>
+        <p>Describe what you want in plain English. AI reads your codebase and drafts a build plan.</p>
+      </div>
+      <div class="feature">
+        <h3>Build</h3>
+        <p>Approve the plan and watch changes get written to your local repo in real time.</p>
+      </div>
+    </div>
+
+    <a class="cta" href="https://github.com/oskarglauser/kodejam">View on GitHub</a>
+  </div>
+  <footer>Kodejam is open source.</footer>
+</body>
+</html>
