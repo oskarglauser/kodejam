@@ -9,3 +9,4 @@ dist/
 *.log
 nohup.out
 .kodejam/
+landing/node_modules/
