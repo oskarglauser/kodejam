@@ -30,7 +30,7 @@ interface ExecuteRequest {
 }
 
 function findClaudeBinary(): string {
-  return '/Users/oskarglauser/.local/bin/claude'
+  return process.env.CLAUDE_BINARY || 'claude'
 }
 
 function spawnClaude(
