@@ -47,6 +47,7 @@ function spawnClaude(
     '--verbose',
     '--allowedTools',
     allowedTools,
+    '--dangerously-skip-permissions',
     '--max-turns',
     '50',
   ]

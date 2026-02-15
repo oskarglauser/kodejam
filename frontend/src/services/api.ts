@@ -67,4 +67,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  // Scan views
+  scanViews: (projectId: string) =>
+    request<{ views: Array<{ name: string; path: string }> }>(`/projects/${projectId}/scan-views`, {
+      method: 'POST',
+    }),
 }

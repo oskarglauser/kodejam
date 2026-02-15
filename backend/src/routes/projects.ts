@@ -1,5 +1,7 @@
 import { Router } from 'express'
 import { v4 as uuid } from 'uuid'
+import { spawn } from 'child_process'
+import { existsSync } from 'fs'
 import { getDb } from '../db.js'
 
 export const projectsRouter = Router()
@@ -109,6 +111,66 @@ projectsRouter.post('/:id/pages', (req, res) => {
   )
   const page = db.prepare('SELECT * FROM pages WHERE id = ?').get(id)
   res.status(201).json(page)
+})
+
+// Scan views — use Claude Code CLI to identify routes/views in the codebase
+projectsRouter.post('/:id/scan-views', (req, res) => {
+  const db = getDb()
+  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id) as
+    | { id: string; repo_path: string }
+    | undefined
+  if (!project) return res.status(404).json({ error: 'Project not found' })
+
+  const cwd = project.repo_path
+  if (!existsSync(cwd)) {
+    return res.status(400).json({ error: 'Project repo_path does not exist' })
+  }
+
+  const prompt = `List all routes, views, pages, and major UI flows in this codebase. Return ONLY a valid JSON array of objects, each with "name" (short page name like "Home", "Login", "Dashboard") and "path" (the URL route path like "/", "/login", "/dashboard"). No explanation, no markdown, just the JSON array.`
+
+  const bin = '/Users/oskarglauser/.local/bin/claude'
+  const args = [
+    '-p', prompt,
+    '--output-format', 'text',
+    '--allowedTools', 'Read,Glob,Grep',
+    '--max-turns', '10',
+  ]
+
+  const escapedArgs = args.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(' ')
+  const cmd = `${bin} ${escapedArgs} < /dev/null`
+
+  const child = spawn('bash', ['-c', cmd], {
+    cwd,
+    env: { ...process.env },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+
+  let stdout = ''
+  let stderr = ''
+
+  child.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
+  child.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+
+  child.on('close', (code) => {
+    if (code !== 0) {
+      console.error('[scan-views] Claude exited with code', code, stderr)
+      return res.status(500).json({ error: 'Scan failed', details: stderr })
+    }
+
+    try {
+      const jsonMatch = stdout.match(/\[[\s\S]*\]/)
+      if (!jsonMatch) throw new Error('No JSON array found in response')
+      const views = JSON.parse(jsonMatch[0])
+      res.json({ views })
+    } catch (err: any) {
+      console.error('[scan-views] Failed to parse response:', stdout.slice(0, 500))
+      res.status(500).json({ error: 'Failed to parse views', raw: stdout.slice(0, 1000) })
+    }
+  })
+
+  child.on('error', (err) => {
+    res.status(500).json({ error: err.message })
+  })
 })
 
 // --- Pages (by page ID) ---

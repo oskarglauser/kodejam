@@ -9,6 +9,7 @@ import { ChatPanel } from '../features/ai/ChatPanel'
 import { useProjectStore } from '../stores/projectStore'
 import { useUIStore } from '../stores/uiStore'
 import { HistoryPanel } from '../features/history/HistoryPanel'
+import { api } from '../services/api'
 import type { ProjectSettings } from '../types'
 
 function getProjectSettings(project: { settings: string }): ProjectSettings {
@@ -209,7 +210,18 @@ export function Layout() {
     <div className="flex flex-col h-screen">
       <Toolbar excalidrawAPI={apiRef.current} />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
+        <Sidebar
+          onFetchScreenshot={async (pageName) => {
+            if (!devUrl) return
+            try {
+              const result = await api.captureScreenshot({ url: devUrl })
+              screenshotFlowRef.current = null
+              handleCreateScreenshot(result.dataUrl, pageName)
+            } catch (err) {
+              console.error('Screenshot capture failed:', err)
+            }
+          }}
+        />
         <main className="flex-1 relative">
           {currentPage ? (
             <Canvas
