@@ -23,8 +23,8 @@ export function ProjectSetup() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center pt-20 px-4">
       <div className="max-w-lg w-full">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Kodejam</h1>
-        <p className="text-sm text-gray-500 mb-8">Visual canvas for AI-powered code generation</p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-1 text-center">Kodejam</h1>
+        <p className="text-sm text-gray-500 mb-8 text-center">Visual canvas for AI-powered code generation</p>
 
         {/* Project list */}
         {projects.length > 0 && (

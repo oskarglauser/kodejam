@@ -23,7 +23,7 @@ A visual design-to-code tool that combines an infinite canvas with AI-powered co
 ### Installation
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/oskarglauser/kodejam.git
 cd kodejam
 npm install
 ```
@@ -93,4 +93,4 @@ kodejam/
 
 ## License
 
-Private
+MIT

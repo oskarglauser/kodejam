@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import type { ChatMessage } from '../../../types'
 
 interface ChatContext {
@@ -216,6 +216,15 @@ export function useAIChat(onScreenshot?: (screenshot: ScreenshotEvent) => void, 
   const cancelStream = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
+    }
+  }, [])
+
+  // Abort in-flight stream on unmount so the backend saves the partial thread
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
     }
   }, [])
 

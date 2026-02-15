@@ -245,7 +245,7 @@ export function ChatPanel({
       )}
       {/* Header */}
       <div style={styles.header}>
-        <span style={styles.headerTitle}>AI Chat</span>
+        <span style={styles.headerTitle}>Claude</span>
         {devUrl && (
           <span style={styles.devUrlBadge} title={devUrl}>
             {new URL(devUrl).host}
