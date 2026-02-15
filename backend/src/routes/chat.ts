@@ -179,10 +179,10 @@ async function captureScreenshots(
         const url = cmd.urls[i]
         const description = cmd.descriptions?.[i] || url
 
+        const page = await browser.newPage({
+          viewport: { width: 1280, height: 800 },
+        })
         try {
-          const page = await browser.newPage({
-            viewport: { width: 1280, height: 800 },
-          })
           await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 })
           await page.waitForTimeout(1000)
 
@@ -203,10 +203,10 @@ async function captureScreenshots(
             height: 800,
             filePath,
           })
-
-          await page.close()
         } catch (err: any) {
           console.error(`[chat] Screenshot failed for ${url}:`, err.message)
+        } finally {
+          await page.close()
         }
       }
     }

@@ -38,7 +38,7 @@ export function Canvas({ onBuild, onSelectionChange, onChatOpen, onEditorMount, 
   onSelectionChangeRef.current = onSelectionChange
   const saveRef = useRef<(elements: readonly ExcalidrawElement[]) => void>(() => {})
 
-  const { save } = useCanvasPersistence(excalidrawAPI)
+  const { save, initialData: persistedData } = useCanvasPersistence(excalidrawAPI)
   saveRef.current = save
 
   // Notify parent when API is ready
@@ -198,7 +198,11 @@ export function Canvas({ onBuild, onSelectionChange, onChatOpen, onEditorMount, 
         excalidrawAPI={setExcalidrawAPI}
         onChange={handleChange}
         onPaste={handlePaste}
-        initialData={{ appState: { viewBackgroundColor: canvasColor || '#f5f5f4' } }}
+        initialData={{
+          elements: persistedData?.elements,
+          files: persistedData?.files,
+          appState: { viewBackgroundColor: canvasColor || '#f5f5f4' },
+        }}
         UIOptions={{
           canvasActions: {
             loadScene: false,

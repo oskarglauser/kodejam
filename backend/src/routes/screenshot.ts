@@ -70,10 +70,10 @@ screenshotRouter.post('/batch', async (req: Request, res: Response) => {
     const results = []
 
     for (const url of urls) {
+      const page = await browser.newPage({
+        viewport: { width, height },
+      })
       try {
-        const page = await browser.newPage({
-          viewport: { width, height },
-        })
         await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 })
         await page.waitForTimeout(500)
 
@@ -88,14 +88,14 @@ screenshotRouter.post('/batch', async (req: Request, res: Response) => {
           height,
           success: true,
         })
-
-        await page.close()
       } catch (err: any) {
         results.push({
           url,
           success: false,
           error: err.message,
         })
+      } finally {
+        await page.close()
       }
     }
 
