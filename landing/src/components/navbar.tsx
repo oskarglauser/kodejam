@@ -1,8 +1,8 @@
 export function Navbar() {
   return (
     <nav className="relative mx-auto flex max-w-5xl items-center justify-between px-8 py-7">
-      <div className="text-lg font-bold tracking-tight text-slate-200">
-        kode<span className="text-indigo-400">jam</span>
+      <div className="text-xl font-bold tracking-tight text-white">
+        kodejam
       </div>
       <a
         href="https://github.com/oskarglauser/kodejam"
