@@ -2,6 +2,8 @@
 
 A visual frontend for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Sketch wireframes on an infinite canvas, chat with AI about your codebase, and ship working code.
 
+**[oskarglauser.github.io/kodejam](https://oskarglauser.github.io/kodejam/)**
+
 ## Features
 
 - **Infinite Canvas** — Draw wireframes, add sticky notes, and organize your design using Excalidraw
