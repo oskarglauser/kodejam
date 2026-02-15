@@ -36,6 +36,9 @@ export function ChatPanel({
   onInitialMessageConsumed,
 }: ChatPanelProps) {
   const [screenshotPreviews, setScreenshotPreviews] = useState<ScreenshotEvent[]>([])
+  const [isBuildPlan, setIsBuildPlan] = useState(false)
+  const [isBuilding, setIsBuilding] = useState(false)
+  const buildAbortRef = useRef<AbortController | null>(null)
 
   const handleScreenshot = useCallback(
     (screenshot: ScreenshotEvent) => {
@@ -47,7 +50,7 @@ export function ChatPanel({
     [onCreateScreenshot]
   )
 
-  const { messages, sendMessage, isStreaming, isCapturingScreenshots, cancelStream, clearMessages, loadThread } =
+  const { messages, setMessages, sendMessage, isStreaming, isCapturingScreenshots, cancelStream, clearMessages, loadThread } =
     useAIChat(handleScreenshot, onScreenshotsStart)
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -65,15 +68,25 @@ export function ChatPanel({
   // Auto-scroll to bottom when messages update
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, screenshotPreviews, isCapturingScreenshots])
+  }, [messages, screenshotPreviews, isCapturingScreenshots, isBuilding])
 
-  // Pre-fill input with initial message (e.g., from Build button)
+  // Auto-send initial message (e.g., from Build button)
+  const initialMessageSentRef = useRef(false)
   useEffect(() => {
-    if (initialMessage) {
-      setInput(initialMessage)
+    if (initialMessage && !initialMessageSentRef.current && !isStreaming) {
+      initialMessageSentRef.current = true
+      setIsBuildPlan(true)
+      setScreenshotPreviews([])
+      sendMessage(initialMessage, {
+        shapes: selectedShapes,
+        repoPath,
+        pageName,
+        pageId,
+        devUrl,
+      })
       if (onInitialMessageConsumed) onInitialMessageConsumed()
     }
-  }, [initialMessage, onInitialMessageConsumed])
+  }, [initialMessage, isStreaming, sendMessage, selectedShapes, repoPath, pageName, pageId, devUrl, onInitialMessageConsumed])
 
   // Focus input on mount
   useEffect(() => {
@@ -82,9 +95,10 @@ export function ChatPanel({
 
   const handleSend = () => {
     const trimmed = input.trim()
-    if (!trimmed || isStreaming) return
+    if (!trimmed || isStreaming || isBuilding) return
 
     setScreenshotPreviews([])
+    setIsBuildPlan(false)
 
     sendMessage(trimmed, {
       shapes: selectedShapes,
@@ -103,6 +117,101 @@ export function ChatPanel({
     }
   }
 
+  // Execute the build plan via /api/build/execute
+  const handleProceedBuild = useCallback(async () => {
+    // Find the last assistant message (the plan)
+    const planMessage = [...messages].reverse().find((m) => m.role === 'assistant')
+    if (!planMessage) return
+
+    setIsBuildPlan(false)
+    setIsBuilding(true)
+
+    // Add a user message indicating approval
+    const userMsg = { role: 'user' as const, content: 'Proceed with the build plan.', timestamp: new Date().toISOString() }
+    const assistantMsg = { role: 'assistant' as const, content: '', timestamp: new Date().toISOString() }
+    setMessages((prev) => [...prev, userMsg, assistantMsg])
+
+    const controller = new AbortController()
+    buildAbortRef.current = controller
+
+    try {
+      const res = await fetch('/api/build/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          buildId: `inline-${Date.now()}`,
+          plan: planMessage.content,
+          repoPath,
+        }),
+        signal: controller.signal,
+      })
+
+      if (!res.ok || !res.body) {
+        throw new Error(`Build API error: ${res.status}`)
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let accumulated = ''
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed || trimmed.startsWith(':') || !trimmed.startsWith('data: ')) continue
+          const data = trimmed.slice(6)
+          if (data === '[DONE]') continue
+
+          try {
+            const event = JSON.parse(data)
+            const text = extractBuildText(event)
+            if (text) {
+              accumulated += text
+              setMessages((prev) => {
+                const updated = [...prev]
+                const lastIdx = updated.length - 1
+                if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
+                  updated[lastIdx] = { ...updated[lastIdx], content: accumulated }
+                }
+                return updated
+              })
+            }
+          } catch {
+            // Skip unparseable lines
+          }
+        }
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return
+      const msg = err instanceof Error ? err.message : 'Build failed'
+      setMessages((prev) => {
+        const updated = [...prev]
+        const lastIdx = updated.length - 1
+        if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
+          updated[lastIdx] = { ...updated[lastIdx], content: `Error: ${msg}` }
+        }
+        return updated
+      })
+    } finally {
+      setIsBuilding(false)
+      buildAbortRef.current = null
+    }
+  }, [messages, repoPath, setMessages])
+
+  const handleCancelBuild = useCallback(() => {
+    buildAbortRef.current?.abort()
+  }, [])
+
+  // Show plan approval buttons when: plan is done streaming, it was a build plan, and not currently building
+  const showPlanApproval = isBuildPlan && !isStreaming && !isBuilding && messages.length > 0 && messages[messages.length - 1].role === 'assistant'
+
   return (
     <div style={styles.container}>
       {/* Header */}
@@ -113,24 +222,19 @@ export function ChatPanel({
             {new URL(devUrl).host}
           </span>
         )}
-        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-          {messages.length > 0 && (
-            <button
-              onClick={clearMessages}
-              style={styles.headerIconButton}
-              title="Clear chat"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 6h18" />
-                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-              </svg>
-            </button>
-          )}
-          <button onClick={onClose} style={styles.closeButton} title="Close chat">
-            &times;
+        {messages.length > 0 && (
+          <button
+            onClick={() => { clearMessages(); setIsBuildPlan(false) }}
+            style={styles.headerIconButton}
+            title="Clear chat"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18" />
+              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+            </svg>
           </button>
-        </div>
+        )}
       </div>
 
       {/* Context chips */}
@@ -172,15 +276,49 @@ export function ChatPanel({
               }}
             >
               {msg.role === 'assistant' ? (
-                <div className="chat-markdown" style={styles.markdownContainer}>
-                  <Markdown>{stripScreenshotCommands(msg.content) || '\u00A0'}</Markdown>
-                </div>
+                stripScreenshotCommands(msg.content) ? (
+                  <div className="chat-markdown" style={styles.markdownContainer}>
+                    <Markdown>{stripScreenshotCommands(msg.content)}</Markdown>
+                  </div>
+                ) : (isStreaming || isBuilding) && idx === messages.length - 1 ? (
+                  <div style={styles.streamingIndicator}>
+                    <span className="streaming-dot" style={{ ...styles.dot, animationDelay: '0s' }}>&#9679;</span>
+                    <span className="streaming-dot" style={{ ...styles.dot, animationDelay: '0.2s' }}>&#9679;</span>
+                    <span className="streaming-dot" style={{ ...styles.dot, animationDelay: '0.4s' }}>&#9679;</span>
+                  </div>
+                ) : (
+                  <span>&nbsp;</span>
+                )
               ) : (
                 <span>{msg.content}</span>
               )}
             </div>
           </div>
         ))}
+
+        {/* Plan approval buttons */}
+        {showPlanApproval && (
+          <div style={styles.planApproval}>
+            <button onClick={handleProceedBuild} style={styles.proceedButton}>
+              Proceed with Build
+            </button>
+            <button
+              onClick={() => { setIsBuildPlan(false); inputRef.current?.focus() }}
+              style={styles.editPlanButton}
+            >
+              Edit Plan
+            </button>
+          </div>
+        )}
+
+        {/* Building indicator */}
+        {isBuilding && (
+          <div style={styles.buildingIndicator}>
+            <div style={styles.buildingDot} />
+            <span>Building...</span>
+            <button onClick={handleCancelBuild} style={styles.cancelBuildButton}>Cancel</button>
+          </div>
+        )}
 
         {/* Screenshot capturing indicator */}
         {isCapturingScreenshots && (
@@ -197,14 +335,6 @@ export function ChatPanel({
           </div>
         )}
 
-        {isStreaming && !isCapturingScreenshots && (
-          <div style={styles.streamingIndicator}>
-            <span style={styles.dot}>&#9679;</span>
-            <span style={styles.dot}>&#9679;</span>
-            <span style={styles.dot}>&#9679;</span>
-          </div>
-        )}
-
         <div ref={messagesEndRef} />
       </div>
 
@@ -218,7 +348,7 @@ export function ChatPanel({
           placeholder={devUrl ? 'Ask the AI... (try "show me the homepage")' : 'Ask the AI...'}
           rows={2}
           style={styles.textarea}
-          disabled={isStreaming}
+          disabled={isStreaming || isBuilding}
         />
         <div style={styles.inputActions}>
           {isStreaming ? (
@@ -228,11 +358,11 @@ export function ChatPanel({
           ) : (
             <button
               onClick={handleSend}
-              disabled={!input.trim()}
+              disabled={!input.trim() || isBuilding}
               style={{
                 ...styles.sendButton,
-                opacity: input.trim() ? 1 : 0.4,
-                cursor: input.trim() ? 'pointer' : 'default',
+                opacity: input.trim() && !isBuilding ? 1 : 0.4,
+                cursor: input.trim() && !isBuilding ? 'pointer' : 'default',
               }}
             >
               Send
@@ -245,6 +375,19 @@ export function ChatPanel({
       <style>{markdownStyles}</style>
     </div>
   )
+}
+
+function extractBuildText(event: any): string {
+  if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta' && event.delta.text) {
+    return event.delta.text
+  }
+  if (event.type === 'assistant' && event.message?.content) {
+    return event.message.content
+      .filter((b: any) => b.type === 'text' && b.text)
+      .map((b: any) => b.text)
+      .join('')
+  }
+  return ''
 }
 
 function stripScreenshotCommands(text: string): string {
@@ -304,6 +447,14 @@ const markdownStyles = `
   border-top: 1px solid #e5e7eb;
   margin: 8px 0;
 }
+@keyframes dotPulse {
+  0%, 80%, 100% { opacity: 0.3; }
+  40% { opacity: 1; }
+}
+@keyframes buildPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
 `
 
 // ---------------------------------------------------------------------------
@@ -312,17 +463,12 @@ const markdownStyles = `
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    position: 'fixed',
-    top: 0,
-    right: 0,
-    bottom: 0,
     width: 380,
+    minWidth: 380,
     display: 'flex',
     flexDirection: 'column',
     background: '#ffffff',
     borderLeft: '1px solid #e5e7eb',
-    boxShadow: '-4px 0 16px rgba(0,0,0,0.06)',
-    zIndex: 1000,
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   },
@@ -365,16 +511,6 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     borderRadius: 4,
-  },
-  closeButton: {
-    background: 'none',
-    border: 'none',
-    fontSize: 20,
-    color: '#6b7280',
-    cursor: 'pointer',
-    padding: '0 4px',
-    lineHeight: 1,
-    flexShrink: 0,
   },
 
   // Context chips
@@ -452,6 +588,66 @@ const styles: Record<string, React.CSSProperties> = {
     lineHeight: 1.5,
   },
 
+  // Plan approval
+  planApproval: {
+    display: 'flex',
+    gap: 8,
+    padding: '4px 0',
+  },
+  proceedButton: {
+    padding: '8px 16px',
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#ffffff',
+    background: '#16a34a',
+    border: 'none',
+    borderRadius: 6,
+    cursor: 'pointer',
+    flex: 1,
+  },
+  editPlanButton: {
+    padding: '8px 16px',
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#374151',
+    background: '#f3f4f6',
+    border: '1px solid #d1d5db',
+    borderRadius: 6,
+    cursor: 'pointer',
+  },
+
+  // Building indicator
+  buildingIndicator: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '8px 12px',
+    background: '#eff6ff',
+    borderRadius: 8,
+    fontSize: 12,
+    color: '#2563eb',
+    fontWeight: 500,
+  },
+  buildingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: '50%',
+    background: '#2563eb',
+    animationName: 'buildPulse',
+    animationDuration: '1.5s',
+    animationIterationCount: 'infinite',
+  },
+  cancelBuildButton: {
+    marginLeft: 'auto',
+    padding: '2px 8px',
+    fontSize: 11,
+    color: '#ef4444',
+    background: 'none',
+    border: '1px solid #ef4444',
+    borderRadius: 4,
+    cursor: 'pointer',
+  },
+
   // Screenshot capturing
   screenshotCapturing: {
     display: 'flex',
@@ -487,7 +683,10 @@ const styles: Record<string, React.CSSProperties> = {
   dot: {
     fontSize: 8,
     color: '#9ca3af',
-    animation: 'none',
+    animationName: 'dotPulse',
+    animationDuration: '1.2s',
+    animationIterationCount: 'infinite',
+    animationTimingFunction: 'ease-in-out',
   },
 
   // Input area

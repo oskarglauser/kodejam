@@ -108,7 +108,7 @@ function spawnClaude(
 
   return spawn('bash', ['-c', cmd], {
     cwd,
-    env: { ...process.env },
+    env: { ...process.env, CLAUDECODE: '' },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
 }
@@ -332,6 +332,24 @@ chatRouter.post('/', (req: Request, res: Response) => {
             if (block.type === 'text') {
               assistantResponse += block.text
             }
+          }
+        }
+
+        // Accumulate text from content_block_delta events
+        if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta' && parsed.delta.text) {
+          assistantResponse += parsed.delta.text
+        }
+
+        // Capture full text from result event (final response)
+        if (parsed.type === 'result' && parsed.result) {
+          // Reset and use the complete result text if available
+          const resultText = typeof parsed.result === 'string'
+            ? parsed.result
+            : Array.isArray(parsed.result?.content)
+              ? parsed.result.content.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('')
+              : ''
+          if (resultText) {
+            assistantResponse = resultText
           }
         }
 

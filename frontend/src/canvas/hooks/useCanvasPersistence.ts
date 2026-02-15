@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types'
+import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types'
 import { useProjectStore } from '../../stores/projectStore'
 import { api } from '../../services/api'
 
@@ -15,80 +16,116 @@ export function useCanvasPersistence(excalidrawAPI: ExcalidrawImperativeAPI | nu
   const updatePage = useProjectStore((s) => s.updatePage)
   const saveTimer = useRef<ReturnType<typeof setTimeout>>()
   const historyTimer = useRef<ReturnType<typeof setTimeout>>()
-  const isLoadingRef = useRef(false)
+  // Block saves until the load effect has run and settled
+  const readyRef = useRef(false)
+  const loadTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  // Store latest elements from onChange to use in debounced save
+  const latestElementsRef = useRef<readonly ExcalidrawElement[]>([])
 
   // Load snapshot when page changes
   useEffect(() => {
+    readyRef.current = false
+    if (loadTimerRef.current) clearTimeout(loadTimerRef.current)
+
     if (!excalidrawAPI || !currentPage) return
+
     if (currentPage.canvas_snapshot) {
       try {
-        isLoadingRef.current = true
         const snapshot = JSON.parse(currentPage.canvas_snapshot)
         if (snapshot.version === 2 && snapshot.type === 'excalidraw') {
           excalidrawAPI.updateScene({ elements: snapshot.elements })
           if (snapshot.files && Object.keys(snapshot.files).length > 0) {
-            excalidrawAPI.addFiles(Object.values(snapshot.files))
+            setTimeout(() => {
+              excalidrawAPI.addFiles(Object.values(snapshot.files))
+            }, 0)
           }
         }
       } catch (e) {
         console.warn('Failed to load canvas snapshot:', e)
-      } finally {
-        setTimeout(() => {
-          isLoadingRef.current = false
-        }, 200)
       }
     } else {
-      isLoadingRef.current = true
-      // Clear canvas for new pages
       excalidrawAPI.updateScene({ elements: [] })
-      setTimeout(() => {
-        isLoadingRef.current = false
-      }, 200)
+    }
+
+    // Allow saves after load has settled
+    loadTimerRef.current = setTimeout(() => {
+      readyRef.current = true
+    }, 500)
+
+    return () => {
+      if (loadTimerRef.current) clearTimeout(loadTimerRef.current)
     }
   }, [excalidrawAPI, currentPage?.id])
 
-  // Create snapshot from current state
-  const getSnapshot = useCallback((): string | null => {
+  // Stable page ID ref for use in debounced timer callbacks
+  const pageIdRef = useRef(currentPage?.id)
+  pageIdRef.current = currentPage?.id
+
+  // Build snapshot from the latest onChange elements
+  const buildSnapshot = useCallback((): string | null => {
     if (!excalidrawAPI) return null
-    const elements = excalidrawAPI.getSceneElements()
+    // Use elements captured from onChange — more reliable than re-querying
+    const allElements = latestElementsRef.current
+    const elements = allElements.filter((el: any) => !el.isDeleted)
+    const sceneElements = excalidrawAPI.getSceneElements()
+    console.log('[persistence] buildSnapshot:', {
+      latestRefCount: allElements.length,
+      nonDeletedCount: elements.length,
+      sceneElementCount: sceneElements.length,
+      deletedCount: allElements.length - elements.length,
+    })
+    // Use sceneElements as fallback if latestRef is empty but scene has elements
+    const finalElements = elements.length > 0 ? elements : sceneElements
     const files = excalidrawAPI.getFiles()
     const snapshot: ExcalidrawSnapshot = {
       version: 2,
       type: 'excalidraw',
-      elements: [...elements],
+      elements: [...finalElements],
       files: files ?? {},
     }
     return JSON.stringify(snapshot)
   }, [excalidrawAPI])
 
-  // Debounced save
-  const save = useCallback(() => {
-    if (!excalidrawAPI || !currentPage || isLoadingRef.current) return
-    if (saveTimer.current) clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(() => {
-      const snapshotStr = getSnapshot()
-      if (snapshotStr) {
-        updatePage(currentPage.id, { canvas_snapshot: snapshotStr })
+  // Debounced save — called with elements from onChange
+  const save = useCallback(
+    (elements: readonly ExcalidrawElement[]) => {
+      // Store latest elements for the debounced callback
+      latestElementsRef.current = elements
+      const nonDeleted = elements.filter((el: any) => !el.isDeleted)
+      if (nonDeleted.length > 0 || elements.length > 0) {
+        console.log('[persistence] save called:', { total: elements.length, nonDeleted: nonDeleted.length, ready: readyRef.current })
       }
-    }, 1000)
-  }, [excalidrawAPI, currentPage, updatePage, getSnapshot])
+      if (!excalidrawAPI || !currentPage || !readyRef.current) return
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+      saveTimer.current = setTimeout(() => {
+        const pageId = pageIdRef.current
+        if (!pageId) return
+        const snapshotStr = buildSnapshot()
+        if (snapshotStr) {
+          updatePage(pageId, { canvas_snapshot: snapshotStr })
+        }
+      }, 1000)
+    },
+    [excalidrawAPI, currentPage, updatePage, buildSnapshot]
+  )
 
   // Auto-save history every 5 minutes of activity
   const saveHistory = useCallback(() => {
-    if (!excalidrawAPI || !currentPage || isLoadingRef.current) return
+    if (!excalidrawAPI || !currentPage || !readyRef.current) return
     if (historyTimer.current) clearTimeout(historyTimer.current)
     historyTimer.current = setTimeout(() => {
-      const snapshotStr = getSnapshot()
+      const pageId = pageIdRef.current
+      if (!pageId) return
+      const snapshotStr = buildSnapshot()
       if (snapshotStr) {
-        api.createHistoryEntry(currentPage.id, {
+        api.createHistoryEntry(pageId, {
           snapshot: snapshotStr,
           description: 'Auto-save',
         }).catch(() => {})
       }
     }, 5 * 60 * 1000)
-  }, [excalidrawAPI, currentPage, getSnapshot])
+  }, [excalidrawAPI, currentPage, buildSnapshot])
 
-  // Trigger history save on each save
   useEffect(() => {
     return () => {
       if (historyTimer.current) clearTimeout(historyTimer.current)
@@ -97,9 +134,12 @@ export function useCanvasPersistence(excalidrawAPI: ExcalidrawImperativeAPI | nu
   }, [])
 
   return {
-    save: useCallback(() => {
-      save()
-      saveHistory()
-    }, [save, saveHistory]),
+    save: useCallback(
+      (elements: readonly ExcalidrawElement[]) => {
+        save(elements)
+        saveHistory()
+      },
+      [save, saveHistory]
+    ),
   }
 }

@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { Excalidraw, convertToExcalidrawElements } from '@excalidraw/excalidraw'
-import type { ExcalidrawImperativeAPI, AppState, BinaryFiles } from '@excalidraw/excalidraw/types'
-import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types'
+import { Excalidraw, convertToExcalidrawElements, getDataURL } from '@excalidraw/excalidraw'
+import type { ExcalidrawImperativeAPI, AppState, BinaryFiles, BinaryFileData, DataURL } from '@excalidraw/excalidraw/types'
+import type { ExcalidrawElement, FileId } from '@excalidraw/excalidraw/element/types'
 import '@excalidraw/excalidraw/index.css'
 import { useCanvasPersistence } from './hooks/useCanvasPersistence'
 import { CustomToolbar } from './ui/CustomToolbar'
@@ -36,7 +36,7 @@ export function Canvas({ onBuild, onSelectionChange, onChatOpen, onEditorMount, 
   // Use refs for callbacks to keep the onChange reference stable
   const onSelectionChangeRef = useRef(onSelectionChange)
   onSelectionChangeRef.current = onSelectionChange
-  const saveRef = useRef<() => void>(() => {})
+  const saveRef = useRef<(elements: readonly ExcalidrawElement[]) => void>(() => {})
 
   const { save } = useCanvasPersistence(excalidrawAPI)
   saveRef.current = save
@@ -73,8 +73,8 @@ export function Canvas({ onBuild, onSelectionChange, onChatOpen, onEditorMount, 
         }
       }
 
-      // Trigger persistence via ref (so callback identity never changes)
-      saveRef.current()
+      // Trigger persistence via ref — pass elements directly from onChange
+      saveRef.current(elements)
     },
     [] // no deps — uses refs for everything that changes
   )
@@ -92,6 +92,73 @@ export function Canvas({ onBuild, onSelectionChange, onChatOpen, onEditorMount, 
       onBuild(shapes)
     },
     [excalidrawAPI, onBuild]
+  )
+
+  // Handle image paste — scale down by devicePixelRatio for Retina displays
+  const excalidrawAPIRef = useRef<ExcalidrawImperativeAPI | null>(null)
+  excalidrawAPIRef.current = excalidrawAPI
+
+  const handlePaste = useCallback(
+    async (data: { files?: BinaryFiles }, event: ClipboardEvent | null) => {
+      if (!event) return true
+
+      const items = event.clipboardData?.items
+      if (!items) return true
+
+      // Find an image item in the clipboard
+      let imageFile: File | null = null
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          imageFile = item.getAsFile()
+          break
+        }
+      }
+      if (!imageFile) return true // let Excalidraw handle non-image pastes
+
+      const api = excalidrawAPIRef.current
+      if (!api) return true
+
+      // Load image to get natural dimensions
+      const dataUrl = await getDataURL(imageFile) as DataURL
+      const img = new Image()
+      await new Promise<void>((resolve) => {
+        img.onload = () => resolve()
+        img.src = dataUrl
+      })
+
+      const dpr = window.devicePixelRatio || 1
+      const width = img.naturalWidth / dpr
+      const height = img.naturalHeight / dpr
+
+      // Place at viewport center
+      const appState = api.getAppState()
+      const cx = (-appState.scrollX + appState.width / 2) / appState.zoom.value - width / 2
+      const cy = (-appState.scrollY + appState.height / 2) / appState.zoom.value - height / 2
+
+      const fileId = `pasted-${Date.now()}` as FileId
+      const fileData: BinaryFileData = {
+        mimeType: imageFile.type as BinaryFileData['mimeType'],
+        id: fileId,
+        dataURL: dataUrl,
+        created: Date.now(),
+      }
+      api.addFiles([fileData])
+
+      const elements = convertToExcalidrawElements([
+        {
+          type: 'image' as const,
+          x: cx,
+          y: cy,
+          width,
+          height,
+          fileId,
+        },
+      ])
+      api.updateScene({ elements: [...api.getSceneElements(), ...elements] })
+
+      return false // prevent Excalidraw's default paste handling
+    },
+    []
   )
 
   // Keyboard shortcuts for chat (/) and custom tools (B, N)
@@ -130,14 +197,13 @@ export function Canvas({ onBuild, onSelectionChange, onChatOpen, onEditorMount, 
       <Excalidraw
         excalidrawAPI={setExcalidrawAPI}
         onChange={handleChange}
+        onPaste={handlePaste}
+        initialData={{ appState: { viewBackgroundColor: canvasColor || '#f5f5f4' } }}
         UIOptions={{
           canvasActions: {
             loadScene: false,
             export: false,
             saveToActiveFile: false,
-          },
-          tools: {
-            image: false,
           },
         }}
         theme="light"

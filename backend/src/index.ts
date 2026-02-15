@@ -37,10 +37,12 @@ app.get('/api/screenshots/:filename', (req, res) => {
   if (!repoPath || !filename) {
     return res.status(400).json({ error: 'repo query param and filename are required' })
   }
-  const filePath = path.join(repoPath, '.kodejam', 'screenshots', filename)
+  // Use path.resolve so non-absolute repo paths (e.g. URLs used as paths)
+  // resolve relative to process.cwd() — matching where captureScreenshots saved them
+  const filePath = path.resolve(repoPath, '.kodejam', 'screenshots', filename)
   res.sendFile(filePath, (err) => {
-    if (err) {
-      res.status(404).json({ error: 'Screenshot not found' })
+    if (err && !res.headersSent) {
+      res.status(404).json({ error: 'Screenshot not found', path: filePath })
     }
   })
 })

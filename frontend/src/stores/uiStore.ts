@@ -14,7 +14,7 @@ interface UIStore {
 
 export const useUIStore = create<UIStore>((set) => ({
   viewMode: 'sketch',
-  chatOpen: false,
+  chatOpen: true,
   historyOpen: false,
   setViewMode: (mode) => set({ viewMode: mode }),
   toggleChat: () => set((s) => ({ chatOpen: !s.chatOpen })),

@@ -221,6 +221,7 @@ export function useAIChat(onScreenshot?: (screenshot: ScreenshotEvent) => void, 
 
   return {
     messages,
+    setMessages,
     sendMessage,
     isStreaming,
     isCapturingScreenshots,

@@ -61,7 +61,7 @@ function spawnClaude(
 
   return spawn('bash', ['-c', cmd], {
     cwd,
-    env: { ...process.env },
+    env: { ...process.env, CLAUDECODE: '' },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
 }
@@ -148,13 +148,24 @@ function streamClaudeProcess(
       try {
         const parsed = JSON.parse(trimmed)
 
-        // Accumulate assistant text
+        // Accumulate assistant text from various event types
         if (parsed.type === 'assistant' && parsed.message?.content) {
           for (const block of parsed.message.content) {
             if (block.type === 'text') {
               fullText += block.text
             }
           }
+        }
+        if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta' && parsed.delta.text) {
+          fullText += parsed.delta.text
+        }
+        if (parsed.type === 'result' && parsed.result) {
+          const resultText = typeof parsed.result === 'string'
+            ? parsed.result
+            : Array.isArray(parsed.result?.content)
+              ? parsed.result.content.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('')
+              : ''
+          if (resultText) fullText = resultText
         }
 
         res.write(`data: ${JSON.stringify(parsed)}\n\n`)
@@ -302,15 +313,16 @@ buildRouter.post('/execute', (req: Request, res: Response) => {
   }
 
   const db = getDb()
+  const isInline = buildId.startsWith('inline-')
 
-  // Verify build exists
-  const build = db.prepare('SELECT * FROM builds WHERE id = ?').get(buildId) as Build | undefined
-  if (!build) {
-    return res.status(404).json({ error: 'Build not found' })
+  if (!isInline) {
+    // Verify build exists for tracked builds
+    const build = db.prepare('SELECT * FROM builds WHERE id = ?').get(buildId) as Build | undefined
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+    db.prepare(`UPDATE builds SET status = 'building' WHERE id = ?`).run(buildId)
   }
-
-  // Update status to building
-  db.prepare(`UPDATE builds SET status = 'building' WHERE id = ?`).run(buildId)
 
   setupSSE(res)
 
@@ -341,14 +353,16 @@ buildRouter.post('/execute', (req: Request, res: Response) => {
     (fullText, exitCode) => {
       const success = exitCode === 0
 
-      if (success) {
-        db.prepare(
-          `UPDATE builds SET status = 'completed', result = ?, completed_at = datetime('now') WHERE id = ?`
-        ).run(fullText, buildId)
-      } else {
-        db.prepare(
-          `UPDATE builds SET status = 'error', error = ?, completed_at = datetime('now') WHERE id = ?`
-        ).run(`Process exited with code ${exitCode}`, buildId)
+      if (!isInline) {
+        if (success) {
+          db.prepare(
+            `UPDATE builds SET status = 'completed', result = ?, completed_at = datetime('now') WHERE id = ?`
+          ).run(fullText, buildId)
+        } else {
+          db.prepare(
+            `UPDATE builds SET status = 'error', error = ?, completed_at = datetime('now') WHERE id = ?`
+          ).run(`Process exited with code ${exitCode}`, buildId)
+        }
       }
 
       res.write(
@@ -362,9 +376,11 @@ buildRouter.post('/execute', (req: Request, res: Response) => {
       res.end()
     },
     (error) => {
-      db.prepare(
-        `UPDATE builds SET status = 'error', error = ?, completed_at = datetime('now') WHERE id = ?`
-      ).run(error, buildId)
+      if (!isInline) {
+        db.prepare(
+          `UPDATE builds SET status = 'error', error = ?, completed_at = datetime('now') WHERE id = ?`
+        ).run(error, buildId)
+      }
     }
   )
 })
