@@ -8,16 +8,44 @@ export function ProjectSetup() {
   const [repoPath, setRepoPath] = useState('')
   const [devUrl, setDevUrl] = useState('')
   const [creating, setCreating] = useState(false)
+  const [repoPathError, setRepoPathError] = useState('')
   const navigate = useNavigate()
 
   useEffect(() => {
     loadProjects()
   }, [])
 
+  function validateRepoPath(value: string): string {
+    const trimmed = value.trim()
+    if (!trimmed) return ''
+    if (/^(https?:\/\/|git@|ssh:\/\/|ftp:\/\/)/.test(trimmed)) {
+      return 'Must be a local directory path, not a URL'
+    }
+    if (!trimmed.startsWith('/')) {
+      return 'Must be an absolute path starting with /'
+    }
+    return ''
+  }
+
+  const handleRepoPathChange = (value: string) => {
+    setRepoPath(value)
+    setRepoPathError(validateRepoPath(value))
+  }
+
   const handleCreate = async () => {
+    const error = validateRepoPath(repoPath)
+    if (error) {
+      setRepoPathError(error)
+      return
+    }
     if (!name.trim() || !repoPath.trim()) return
-    const project = await createProject(name.trim(), repoPath.trim(), devUrl.trim() || undefined)
-    navigate(`/project/${project.id}`)
+    try {
+      const project = await createProject(name.trim(), repoPath.trim(), devUrl.trim() || undefined)
+      navigate(`/project/${project.id}`)
+    } catch (err: any) {
+      const message = err?.message || 'Failed to create project'
+      setRepoPathError(message)
+    }
   }
 
   return (
@@ -72,9 +100,12 @@ export function ProjectSetup() {
               type="text"
               placeholder="Path to git repo (e.g. /Users/you/projects/myapp)"
               value={repoPath}
-              onChange={(e) => setRepoPath(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md mb-3 focus:outline-none focus:border-blue-400"
+              onChange={(e) => handleRepoPathChange(e.target.value)}
+              className={`w-full px-3 py-2 text-sm border rounded-md focus:outline-none ${repoPathError ? 'border-red-400 focus:border-red-500 mb-1' : 'border-gray-300 focus:border-blue-400 mb-3'}`}
             />
+            {repoPathError && (
+              <p className="text-xs text-red-500 mb-3">{repoPathError}</p>
+            )}
             <input
               type="text"
               placeholder="Dev server URL (e.g. http://localhost:3000)"
@@ -85,7 +116,7 @@ export function ProjectSetup() {
             <div className="flex gap-2">
               <button
                 onClick={handleCreate}
-                disabled={!name.trim() || !repoPath.trim()}
+                disabled={!name.trim() || !repoPath.trim() || !!repoPathError}
                 className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-40"
               >
                 Create

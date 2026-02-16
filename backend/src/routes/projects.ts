@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { v4 as uuid } from 'uuid'
 import { spawn } from 'child_process'
-import { existsSync } from 'fs'
+import { existsSync, statSync } from 'fs'
 import { getDb } from '../db.js'
 
 export const projectsRouter = Router()
@@ -23,9 +23,29 @@ projectsRouter.post('/', (req, res) => {
   if (!name || !repo_path) {
     return res.status(400).json({ error: 'name and repo_path are required' })
   }
+
+  // Validate repo_path is a local directory, not a URL
+  const trimmedPath = repo_path.trim()
+  if (/^(https?:\/\/|git@|ssh:\/\/|ftp:\/\/)/.test(trimmedPath) || trimmedPath.includes('://')) {
+    return res.status(400).json({ error: 'repo_path must be a local directory path, not a URL' })
+  }
+  if (!trimmedPath.startsWith('/')) {
+    return res.status(400).json({ error: 'repo_path must be an absolute path starting with /' })
+  }
+  if (!existsSync(trimmedPath)) {
+    return res.status(400).json({ error: `repo_path does not exist: ${trimmedPath}` })
+  }
+  try {
+    if (!statSync(trimmedPath).isDirectory()) {
+      return res.status(400).json({ error: 'repo_path must be a directory, not a file' })
+    }
+  } catch {
+    return res.status(400).json({ error: `Cannot access repo_path: ${trimmedPath}` })
+  }
+
   const id = uuid()
   const settings = JSON.stringify({ dev_url: dev_url || '' })
-  db.prepare('INSERT INTO projects (id, name, repo_path, settings) VALUES (?, ?, ?, ?)').run(id, name, repo_path, settings)
+  db.prepare('INSERT INTO projects (id, name, repo_path, settings) VALUES (?, ?, ?, ?)').run(id, name, trimmedPath, settings)
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(id)
   res.status(201).json(project)
 })

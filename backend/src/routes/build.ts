@@ -52,9 +52,8 @@ function spawnClaude(
     '50',
   ]
 
-  // Ensure cwd exists
   if (!existsSync(cwd)) {
-    mkdirSync(cwd, { recursive: true })
+    throw new Error(`Working directory does not exist: ${cwd}`)
   }
 
   const escapedArgs = args.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(' ')
@@ -281,7 +280,16 @@ buildRouter.post('/plan', (req: Request, res: Response) => {
 
   const prompt = promptLines.join('\n')
 
-  const child = spawnClaude(prompt, 'Read,Glob,Grep', repoPath)
+  let child: ReturnType<typeof spawnClaude>
+  try {
+    child = spawnClaude(prompt, 'Read,Glob,Grep', repoPath)
+  } catch (err: any) {
+    db.prepare(`UPDATE builds SET status = 'error', error = ? WHERE id = ?`).run(err.message, buildId)
+    res.write(`data: ${JSON.stringify({ type: 'error', error: err.message })}\n\n`)
+    res.write(`data: ${JSON.stringify({ type: 'done', buildId, exitCode: 1 })}\n\n`)
+    res.end()
+    return
+  }
 
   streamClaudeProcess(
     child,
@@ -345,7 +353,20 @@ buildRouter.post('/execute', (req: Request, res: Response) => {
     `Execute the plan now. Create all necessary files and modifications.`,
   ].join('\n')
 
-  const child = spawnClaude(prompt, 'Read,Write,Edit,Bash,Glob,Grep', repoPath)
+  let child: ReturnType<typeof spawnClaude>
+  try {
+    child = spawnClaude(prompt, 'Read,Write,Edit,Bash,Glob,Grep', repoPath)
+  } catch (err: any) {
+    if (!isInline) {
+      db.prepare(
+        `UPDATE builds SET status = 'error', error = ?, completed_at = datetime('now') WHERE id = ?`
+      ).run(err.message, buildId)
+    }
+    res.write(`data: ${JSON.stringify({ type: 'error', error: err.message })}\n\n`)
+    res.write(`data: ${JSON.stringify({ type: 'done', buildId, status: 'error', exitCode: 1 })}\n\n`)
+    res.end()
+    return
+  }
 
   streamClaudeProcess(
     child,

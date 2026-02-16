@@ -99,9 +99,8 @@ function spawnClaude(
     '10',
   ]
 
-  // Ensure cwd exists
   if (!existsSync(cwd)) {
-    mkdirSync(cwd, { recursive: true })
+    throw new Error(`Working directory does not exist: ${cwd}`)
   }
 
   const escapedArgs = args.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(' ')
@@ -305,7 +304,15 @@ chatRouter.post('/', (req: Request, res: Response) => {
   // Send the thread ID immediately so the client can track it
   res.write(`data: ${JSON.stringify({ type: 'thread', threadId: currentThreadId })}\n\n`)
 
-  const child = spawnClaude(fullPrompt, 'Read,Glob,Grep', context.repoPath)
+  let child: ReturnType<typeof spawnClaude>
+  try {
+    child = spawnClaude(fullPrompt, 'Read,Glob,Grep', context.repoPath)
+  } catch (err: any) {
+    res.write(`data: ${JSON.stringify({ type: 'error', error: err.message })}\n\n`)
+    res.write(`data: ${JSON.stringify({ type: 'done', threadId: currentThreadId, exitCode: 1 })}\n\n`)
+    res.end()
+    return
+  }
 
   console.log('[chat] Child spawned, pid:', child.pid)
 
