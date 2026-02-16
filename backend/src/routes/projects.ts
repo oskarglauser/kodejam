@@ -66,7 +66,7 @@ projectsRouter.patch('/:id', (req, res) => {
     | undefined
   if (!project) return res.status(404).json({ error: 'Project not found' })
 
-  const { name, settings } = req.body
+  const { name, repo_path, settings } = req.body
 
   const updates: string[] = []
   const values: unknown[] = []
@@ -74,6 +74,27 @@ projectsRouter.patch('/:id', (req, res) => {
   if (name !== undefined) {
     updates.push('name = ?')
     values.push(name)
+  }
+  if (repo_path !== undefined) {
+    const trimmed = repo_path.trim()
+    if (/^(https?:\/\/|git@|ssh:\/\/|ftp:\/\/)/.test(trimmed) || trimmed.includes('://')) {
+      return res.status(400).json({ error: 'repo_path must be a local directory path, not a URL' })
+    }
+    if (!trimmed.startsWith('/')) {
+      return res.status(400).json({ error: 'repo_path must be an absolute path starting with /' })
+    }
+    if (!existsSync(trimmed)) {
+      return res.status(400).json({ error: `repo_path does not exist: ${trimmed}` })
+    }
+    try {
+      if (!statSync(trimmed).isDirectory()) {
+        return res.status(400).json({ error: 'repo_path must be a directory, not a file' })
+      }
+    } catch {
+      return res.status(400).json({ error: `Cannot access repo_path: ${trimmed}` })
+    }
+    updates.push('repo_path = ?')
+    values.push(trimmed)
   }
   if (settings !== undefined) {
     // Merge incoming settings with existing settings

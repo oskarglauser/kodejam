@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useProjectStore } from '../../stores/projectStore'
+import { DirectoryPicker } from '../../components/DirectoryPicker'
+import type { ExcalidrawImperativeAPI } from '../../canvas/Canvas'
 import type { ProjectSettings } from '../../types'
 
 interface Props {
   onClose: () => void
+  excalidrawAPI?: ExcalidrawImperativeAPI | null
 }
 
 function parseSettings(settingsJson: string): ProjectSettings {
@@ -15,63 +18,158 @@ function parseSettings(settingsJson: string): ProjectSettings {
 }
 
 const CANVAS_COLOR_PRESETS = [
-  { label: 'Light Stone', value: '#f5f5f4' },
   { label: 'White', value: '#ffffff' },
   { label: 'Light Gray', value: '#f0f0f0' },
-  { label: 'Light Blue', value: '#f0f4ff' },
-  { label: 'Light Green', value: '#f0fdf4' },
-  { label: 'Warm', value: '#fefce8' },
+  { label: 'Silver', value: '#e5e5e5' },
+  { label: 'Gray', value: '#d4d4d4' },
+  { label: 'Medium Gray', value: '#c0c0c0' },
+  { label: 'Dark Gray', value: '#a3a3a3' },
 ]
 
-export function ProjectSettingsModal({ onClose }: Props) {
+const DEFAULT_CANVAS_COLOR = '#d4d4d4'
+
+export function ProjectSettingsModal({ onClose, excalidrawAPI }: Props) {
   const { currentProject, updateProject } = useProjectStore()
+  const [projectName, setProjectName] = useState('')
+  const [repoPath, setRepoPath] = useState('')
+  const [repoPathError, setRepoPathError] = useState('')
   const [devUrl, setDevUrl] = useState('')
-  const [canvasColor, setCanvasColor] = useState('#f5f5f4')
+  const [canvasColor, setCanvasColor] = useState(DEFAULT_CANVAS_COLOR)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const [showDirPicker, setShowDirPicker] = useState(false)
+  const originalColorRef = useRef(DEFAULT_CANVAS_COLOR)
 
   useEffect(() => {
     if (currentProject) {
       const settings = parseSettings(currentProject.settings)
+      setProjectName(currentProject.name)
+      setRepoPath(currentProject.repo_path)
       setDevUrl(settings.dev_url || '')
-      setCanvasColor(settings.canvas_color || '#f5f5f4')
+      const color = settings.canvas_color || DEFAULT_CANVAS_COLOR
+      setCanvasColor(color)
+      originalColorRef.current = color
     }
   }, [currentProject])
 
+  // Live preview: update canvas background as user picks colors
+  useEffect(() => {
+    if (excalidrawAPI && canvasColor) {
+      excalidrawAPI.updateScene({ appState: { viewBackgroundColor: canvasColor } })
+    }
+  }, [canvasColor, excalidrawAPI])
+
   if (!currentProject) return null
 
+  function validateRepoPath(value: string): string {
+    const trimmed = value.trim()
+    if (!trimmed) return 'Repository path is required'
+    if (/^(https?:\/\/|git@|ssh:\/\/|ftp:\/\/)/.test(trimmed)) {
+      return 'Must be a local directory path, not a URL'
+    }
+    if (!trimmed.startsWith('/')) {
+      return 'Must be an absolute path starting with /'
+    }
+    return ''
+  }
+
+  const handleRepoPathChange = (value: string) => {
+    setRepoPath(value)
+    setRepoPathError(validateRepoPath(value))
+    setSaveError('')
+  }
+
+  const handleCancel = () => {
+    // Revert canvas color preview
+    if (excalidrawAPI && originalColorRef.current) {
+      excalidrawAPI.updateScene({ appState: { viewBackgroundColor: originalColorRef.current } })
+    }
+    onClose()
+  }
+
   const handleSave = async () => {
+    const pathError = validateRepoPath(repoPath)
+    if (pathError) {
+      setRepoPathError(pathError)
+      return
+    }
     setSaving(true)
+    setSaveError('')
     try {
       await updateProject(currentProject.id, {
+        name: projectName.trim() || currentProject.name,
+        repo_path: repoPath.trim(),
         settings: { dev_url: devUrl.trim(), canvas_color: canvasColor },
       })
       onClose()
+    } catch (err: any) {
+      setSaveError(err?.message || 'Failed to save')
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div style={styles.overlay} onClick={onClose}>
+    <div style={styles.overlay} onClick={handleCancel}>
       <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div style={styles.header}>
           <h2 style={styles.title}>Project Settings</h2>
-          <button onClick={onClose} style={styles.closeBtn}>&times;</button>
+          <button onClick={handleCancel} style={styles.closeBtn}>&times;</button>
         </div>
 
         <div style={styles.body}>
           <div style={styles.field}>
             <label style={styles.label}>Project Name</label>
-            <div style={styles.readOnly}>{currentProject.name}</div>
+            <input
+              type="text"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              style={styles.input}
+            />
           </div>
 
           <div style={styles.field}>
-            <label style={styles.label}>Repository Path</label>
-            <div style={styles.readOnly}>{currentProject.repo_path}</div>
+            <label style={styles.label}>Local Project Path</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                type="text"
+                value={repoPath}
+                onChange={(e) => handleRepoPathChange(e.target.value)}
+                placeholder="/Users/you/projects/myapp"
+                style={{
+                  ...styles.input,
+                  flex: 1,
+                  ...(repoPathError ? { borderColor: '#ef4444' } : {}),
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowDirPicker(true)}
+                style={styles.browseBtn}
+              >
+                Browse
+              </button>
+            </div>
+            {repoPathError && (
+              <p style={{ fontSize: 11, color: '#ef4444', margin: 0 }}>{repoPathError}</p>
+            )}
           </div>
+          {showDirPicker && (
+            <DirectoryPicker
+              initialPath={repoPath.startsWith('/') ? repoPath : undefined}
+              onSelect={(path) => {
+                handleRepoPathChange(path)
+                setShowDirPicker(false)
+              }}
+              onCancel={() => setShowDirPicker(false)}
+            />
+          )}
 
           <div style={styles.field}>
-            <label style={styles.label}>Dev Server URL</label>
+            <label style={styles.label}>
+              Dev Server URL
+              <span style={{ fontWeight: 400, color: '#9ca3af', marginLeft: 4 }}>(optional)</span>
+            </label>
             <input
               type="text"
               value={devUrl}
@@ -80,7 +178,7 @@ export function ProjectSettingsModal({ onClose }: Props) {
               style={styles.input}
             />
             <p style={styles.hint}>
-              Set this to your app's dev server URL to enable screenshot capture from chat.
+              Enables screenshot capture from chat. Leave empty if not needed.
             </p>
           </div>
 
@@ -121,9 +219,12 @@ export function ProjectSettingsModal({ onClose }: Props) {
           </div>
         </div>
 
+        {saveError && (
+          <div style={{ padding: '0 20px 8px', color: '#ef4444', fontSize: 12 }}>{saveError}</div>
+        )}
         <div style={styles.footer}>
-          <button onClick={onClose} style={styles.cancelBtn}>Cancel</button>
-          <button onClick={handleSave} disabled={saving} style={styles.saveBtn}>
+          <button onClick={handleCancel} style={styles.cancelBtn}>Cancel</button>
+          <button onClick={handleSave} disabled={saving || !!repoPathError} style={styles.saveBtn}>
             {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
@@ -188,11 +289,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     color: '#374151',
   },
-  readOnly: {
-    fontSize: 13,
-    color: '#6b7280',
-    padding: '6px 0',
-  },
   input: {
     width: '100%',
     padding: '8px 10px',
@@ -223,6 +319,16 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #d1d5db',
     borderRadius: 6,
     cursor: 'pointer',
+  },
+  browseBtn: {
+    padding: '8px 12px',
+    fontSize: 12,
+    color: '#374151',
+    background: '#fff',
+    border: '1px solid #d1d5db',
+    borderRadius: 6,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
   },
   saveBtn: {
     padding: '6px 14px',

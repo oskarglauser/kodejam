@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProjectStore } from '../../stores/projectStore'
+import { DirectoryPicker } from '../../components/DirectoryPicker'
 
 export function ProjectSetup() {
   const { projects, loadProjects, createProject, deleteProject, loading } = useProjectStore()
@@ -9,6 +10,7 @@ export function ProjectSetup() {
   const [devUrl, setDevUrl] = useState('')
   const [creating, setCreating] = useState(false)
   const [repoPathError, setRepoPathError] = useState('')
+  const [showDirPicker, setShowDirPicker] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -96,15 +98,37 @@ export function ProjectSetup() {
               onChange={(e) => setName(e.target.value)}
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md mb-3 focus:outline-none focus:border-blue-400"
             />
-            <input
-              type="text"
-              placeholder="Path to git repo (e.g. /Users/you/projects/myapp)"
-              value={repoPath}
-              onChange={(e) => handleRepoPathChange(e.target.value)}
-              className={`w-full px-3 py-2 text-sm border rounded-md focus:outline-none ${repoPathError ? 'border-red-400 focus:border-red-500 mb-1' : 'border-gray-300 focus:border-blue-400 mb-3'}`}
-            />
-            {repoPathError && (
+            <label className="text-xs font-medium text-gray-500 mb-1">Local project path</label>
+            <div className="flex gap-2 mb-1">
+              <input
+                type="text"
+                placeholder="/Users/you/projects/myapp"
+                value={repoPath}
+                onChange={(e) => handleRepoPathChange(e.target.value)}
+                className={`flex-1 px-3 py-2 text-sm border rounded-md focus:outline-none ${repoPathError ? 'border-red-400 focus:border-red-500' : 'border-gray-300 focus:border-blue-400'}`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowDirPicker(true)}
+                className="px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 text-gray-600 whitespace-nowrap"
+              >
+                Browse
+              </button>
+            </div>
+            {repoPathError ? (
               <p className="text-xs text-red-500 mb-3">{repoPathError}</p>
+            ) : (
+              <div className="mb-2" />
+            )}
+            {showDirPicker && (
+              <DirectoryPicker
+                initialPath={repoPath || undefined}
+                onSelect={(path) => {
+                  handleRepoPathChange(path)
+                  setShowDirPicker(false)
+                }}
+                onCancel={() => setShowDirPicker(false)}
+              />
             )}
             <input
               type="text"

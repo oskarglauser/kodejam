@@ -60,6 +60,7 @@ export function ChatPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const threadLoadedRef = useRef(false)
+  const hasScrolledInitialRef = useRef(false)
 
   // Load existing chat thread for this page on mount
   useEffect(() => {
@@ -71,7 +72,13 @@ export function ChatPanel({
 
   // Auto-scroll to bottom when messages update
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (!hasScrolledInitialRef.current && messages.length > 0) {
+      // First load: jump instantly so user doesn't see scroll animation
+      hasScrolledInitialRef.current = true
+      messagesEndRef.current?.scrollIntoView({ behavior: 'instant' })
+    } else if (hasScrolledInitialRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
   }, [messages, screenshotPreviews, isCapturingScreenshots, isBuilding])
 
   // Auto-send initial message (e.g., from Build button)

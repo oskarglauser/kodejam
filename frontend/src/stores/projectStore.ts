@@ -12,7 +12,7 @@ interface ProjectStore {
   loadProjects: () => Promise<void>
   createProject: (name: string, repoPath: string, devUrl?: string) => Promise<Project>
   setCurrentProject: (project: Project) => void
-  updateProject: (id: string, data: { name?: string; settings?: ProjectSettings }) => Promise<void>
+  updateProject: (id: string, data: { name?: string; repo_path?: string; settings?: ProjectSettings }) => Promise<void>
   deleteProject: (id: string) => Promise<void>
 
   loadPages: (projectId: string) => Promise<void>

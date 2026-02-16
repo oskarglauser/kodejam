@@ -32,7 +32,7 @@ html, body, #root {
 
 /* Excalidraw canvas background */
 .excalidraw {
-  --color-surface-lowest: var(--kodejam-canvas-bg, #f5f5f4) !important;
+  --color-surface-lowest: var(--kodejam-canvas-bg, #d4d4d4) !important;
 }
 
 /* Hide Excalidraw's default UI — we use our own toolbar */

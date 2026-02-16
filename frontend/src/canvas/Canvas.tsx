@@ -48,6 +48,13 @@ export function Canvas({ onBuild, onSelectionChange, onChatOpen, onEditorMount, 
     }
   }, [excalidrawAPI, onEditorMount])
 
+  // Apply canvas background color dynamically when settings change
+  useEffect(() => {
+    if (excalidrawAPI && canvasColor) {
+      excalidrawAPI.updateScene({ appState: { viewBackgroundColor: canvasColor } })
+    }
+  }, [excalidrawAPI, canvasColor])
+
   // Stable onChange handler — never changes reference
   const handleChange = useCallback(
     (elements: readonly ExcalidrawElement[], appState: AppState, _files: BinaryFiles) => {
@@ -201,7 +208,7 @@ export function Canvas({ onBuild, onSelectionChange, onChatOpen, onEditorMount, 
         initialData={{
           elements: persistedData?.elements,
           files: persistedData?.files,
-          appState: { viewBackgroundColor: canvasColor || '#f5f5f4' },
+          appState: { viewBackgroundColor: canvasColor || '#d4d4d4' },
         }}
         UIOptions={{
           canvasActions: {

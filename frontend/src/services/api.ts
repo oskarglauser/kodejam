@@ -27,7 +27,7 @@ export const api = {
       body: JSON.stringify(data),
     }),
   getProject: (id: string) => request<import('../types').Project>(`/projects/${id}`),
-  updateProject: (id: string, data: { name?: string; settings?: import('../types').ProjectSettings }) =>
+  updateProject: (id: string, data: { name?: string; repo_path?: string; settings?: import('../types').ProjectSettings }) =>
     request<import('../types').Project>(`/projects/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),

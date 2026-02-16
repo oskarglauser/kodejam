@@ -182,7 +182,7 @@ export function Toolbar({ excalidrawAPI }: ToolbarProps) {
         </div>
       </header>
 
-      {showSettings && <ProjectSettingsModal onClose={() => setShowSettings(false)} />}
+      {showSettings && <ProjectSettingsModal onClose={() => setShowSettings(false)} excalidrawAPI={excalidrawAPI} />}
     </>
   )
 }
