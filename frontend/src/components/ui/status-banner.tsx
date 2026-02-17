@@ -27,6 +27,7 @@ const StatusBanner = React.forwardRef<HTMLDivElement, StatusBannerProps>(
   ({ className, variant, ...props }, ref) => (
     <div
       ref={ref}
+      role={variant === 'error' || variant === 'warning' ? 'alert' : 'status'}
       className={cn(statusBannerVariants({ variant, className }))}
       {...props}
     />

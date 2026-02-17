@@ -81,9 +81,9 @@ export const Disabled: Story = {
 export const ToolbarExample: Story = {
   render: () => (
     <div className="flex items-center gap-1">
-      <IconButton title="History"><ClockIcon /></IconButton>
-      <IconButton title="Settings"><SettingsIcon /></IconButton>
-      <IconButton variant="active" title="Chat"><ChatIcon /></IconButton>
+      <IconButton aria-label="History"><ClockIcon /></IconButton>
+      <IconButton aria-label="Settings"><SettingsIcon /></IconButton>
+      <IconButton variant="active" aria-label="Chat"><ChatIcon /></IconButton>
     </div>
   ),
   name: 'Toolbar Group',

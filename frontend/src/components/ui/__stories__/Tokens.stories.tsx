@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react'
 import { colors, fontSize, fontWeight, fontFamily, spacing, borderRadius, shadow } from '@/lib/tokens'
 
 // ---------------------------------------------------------------------------
-// Colors
+// Helpers
 // ---------------------------------------------------------------------------
 
 function ColorSwatch({ name, value }: { name: string; value: string }) {
@@ -37,8 +37,21 @@ function ColorGroup({ title, items }: { title: string; items: { name: string; va
   )
 }
 
-function ColorsPage() {
-  return (
+// ---------------------------------------------------------------------------
+// Meta – all token pages live under "Design Tokens"
+// ---------------------------------------------------------------------------
+
+const meta: Meta = {
+  title: 'Design Tokens',
+}
+export default meta
+
+// ---------------------------------------------------------------------------
+// Colors
+// ---------------------------------------------------------------------------
+
+export const Colors: StoryObj = {
+  render: () => (
     <div style={{ maxWidth: 600, fontFamily: fontFamily.sans }}>
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Colors</h2>
       <p style={{ fontSize: 13, color: '#64748b', marginBottom: 24 }}>
@@ -92,22 +105,15 @@ function ColorsPage() {
         ]}
       />
     </div>
-  )
+  ),
 }
-
-const colorsMeta: Meta = {
-  title: 'Design Tokens/Colors',
-  component: ColorsPage,
-}
-export default colorsMeta
-export const Default: StoryObj = {}
 
 // ---------------------------------------------------------------------------
 // Typography
 // ---------------------------------------------------------------------------
 
-export function Typography() {
-  return (
+export const Typography: StoryObj = {
+  render: () => (
     <div style={{ maxWidth: 600, fontFamily: fontFamily.sans }}>
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Typography</h2>
       <p style={{ fontSize: 13, color: '#64748b', marginBottom: 24 }}>
@@ -147,16 +153,16 @@ export function Typography() {
         ))}
       </div>
     </div>
-  )
+  ),
 }
-Typography.storyName = 'Typography'
 
 // ---------------------------------------------------------------------------
-// Spacing & Radius & Shadows
+// Spacing, Radius & Shadows
 // ---------------------------------------------------------------------------
 
-export function SpacingRadiusShadows() {
-  return (
+export const SpacingRadiusShadows: StoryObj = {
+  name: 'Spacing, Radius & Shadows',
+  render: () => (
     <div style={{ maxWidth: 600, fontFamily: fontFamily.sans }}>
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Spacing, Radius & Shadows</h2>
       <p style={{ fontSize: 13, color: '#64748b', marginBottom: 24 }}>
@@ -221,6 +227,5 @@ export function SpacingRadiusShadows() {
         ))}
       </div>
     </div>
-  )
+  ),
 }
-SpacingRadiusShadows.storyName = 'Spacing, Radius & Shadows'

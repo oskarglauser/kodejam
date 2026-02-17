@@ -23,8 +23,15 @@ export interface ChipProps
   extends React.HTMLAttributes<HTMLSpanElement>,
     VariantProps<typeof chipVariants> {}
 
-function Chip({ className, variant, ...props }: ChipProps) {
-  return <span className={cn(chipVariants({ variant }), className)} {...props} />
-}
+const Chip = React.forwardRef<HTMLSpanElement, ChipProps>(
+  ({ className, variant, ...props }, ref) => (
+    <span
+      ref={ref}
+      className={cn(chipVariants({ variant, className }))}
+      {...props}
+    />
+  ),
+)
+Chip.displayName = 'Chip'
 
 export { Chip, chipVariants }

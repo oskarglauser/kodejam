@@ -3,52 +3,52 @@
  *
  * Single source of truth for colors, typography, spacing, radii, and shadows.
  * CSS custom properties are defined in index.css; Tailwind consumes them via
- * tailwind.config.ts.  This module exports the resolved hex values for
- * documentation and any programmatic use outside of Tailwind classes.
+ * tailwind.config.ts.  This module exports the computed hex values of the HSL
+ * CSS variables for documentation and programmatic use outside of Tailwind.
  */
 
 // ---------------------------------------------------------------------------
-// Colors – resolved hex equivalents of the HSL CSS variables
+// Colors – computed hex equivalents of the HSL CSS variables in index.css
 // ---------------------------------------------------------------------------
 
 export const colors = {
   primary: {
-    DEFAULT: '#2563eb',
-    foreground: '#f8fafc',
+    DEFAULT: '#2463eb',   // hsl(221, 83%, 53%)
+    foreground: '#f8fafc', // hsl(210, 40%, 98%)
   },
   secondary: {
-    DEFAULT: '#f1f5f9',
-    foreground: '#1e293b',
+    DEFAULT: '#f1f5f9',   // hsl(210, 40%, 96%)
+    foreground: '#0f1729', // hsl(222, 47%, 11%)
   },
   destructive: {
-    DEFAULT: '#ef4444',
-    foreground: '#f8fafc',
+    DEFAULT: '#ef4343',   // hsl(0, 84%, 60%)
+    foreground: '#f8fafc', // hsl(210, 40%, 98%)
   },
   success: {
-    DEFAULT: '#16a34a',
-    foreground: '#f0fdf4',
+    DEFAULT: '#16a249',   // hsl(142, 76%, 36%)
+    foreground: '#f2fdf5', // hsl(138, 76%, 97%)
   },
   warning: {
-    DEFAULT: '#eab308',
-    foreground: '#422006',
+    DEFAULT: '#f59f0a',   // hsl(38, 92%, 50%)
+    foreground: '#451a03', // hsl(21, 92%, 14%)
   },
   muted: {
-    DEFAULT: '#f1f5f9',
-    foreground: '#64748b',
+    DEFAULT: '#f1f5f9',   // hsl(210, 40%, 96%)
+    foreground: '#65758b', // hsl(215, 16%, 47%)
   },
   accent: {
-    DEFAULT: '#f1f5f9',
-    foreground: '#1e293b',
+    DEFAULT: '#f1f5f9',   // hsl(210, 40%, 96%)
+    foreground: '#0f1729', // hsl(222, 47%, 11%)
   },
-  background: '#ffffff',
-  foreground: '#1e293b',
+  background: '#ffffff',   // hsl(0, 0%, 100%)
+  foreground: '#0f1729',   // hsl(222, 47%, 11%)
   card: {
     DEFAULT: '#ffffff',
-    foreground: '#1e293b',
+    foreground: '#0f1729',
   },
-  border: '#e2e8f0',
-  input: '#e2e8f0',
-  ring: '#2563eb',
+  border: '#e1e7ef',       // hsl(214, 32%, 91%)
+  input: '#e1e7ef',        // hsl(214, 32%, 91%)
+  ring: '#2463eb',         // hsl(221, 83%, 53%)
 } as const
 
 // ---------------------------------------------------------------------------
@@ -61,13 +61,12 @@ export const fontFamily = {
 } as const
 
 export const fontSize = {
-  xs: '0.625rem',   // 10px – badges, tags
-  sm: '0.6875rem',  // 11px – hints, captions
-  base: '0.8125rem', // 13px – body text, inputs
-  md: '0.875rem',   // 14px – prominent body
-  lg: '0.9375rem',  // 15px – section titles
-  xl: '1rem',       // 16px – modal titles
-  '2xl': '1.25rem', // 20px – page headings
+  xs: '0.75rem',     // 12px – Tailwind text-xs, badges, labels
+  sm: '0.8125rem',   // 13px – body text, inputs
+  base: '0.875rem',  // 14px – prominent body
+  lg: '0.9375rem',   // 15px – section titles
+  xl: '1rem',        // 16px – modal titles
+  '2xl': '1.25rem',  // 20px – page headings
 } as const
 
 export const fontWeight = {

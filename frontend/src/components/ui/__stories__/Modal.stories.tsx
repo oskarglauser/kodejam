@@ -13,8 +13,9 @@ import { Button } from '../button'
 import { Input } from '../input'
 import { Label } from '../label'
 
-const meta: Meta = {
+const meta: Meta<typeof ModalContent> = {
   title: 'Components/Modal',
+  component: ModalContent,
 }
 
 export default meta

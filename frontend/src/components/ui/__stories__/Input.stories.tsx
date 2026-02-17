@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { Input } from '../input'
-import { Textarea } from '../textarea'
 import { Label } from '../label'
 
 const meta: Meta<typeof Input> = {
@@ -41,22 +40,4 @@ export const ErrorState: Story = {
       <p className="text-[11px] text-destructive m-0">Must be an absolute path starting with /</p>
     </div>
   ),
-}
-
-export const TextareaDefault: StoryObj<typeof Textarea> = {
-  render: () => (
-    <div style={{ maxWidth: 400 }}>
-      <Textarea placeholder="Ask the AI..." rows={3} />
-    </div>
-  ),
-  name: 'Textarea',
-}
-
-export const TextareaDisabled: StoryObj<typeof Textarea> = {
-  render: () => (
-    <div style={{ maxWidth: 400 }}>
-      <Textarea placeholder="Ask the AI..." rows={3} disabled />
-    </div>
-  ),
-  name: 'Textarea (Disabled)',
 }

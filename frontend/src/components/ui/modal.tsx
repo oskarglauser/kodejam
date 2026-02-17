@@ -1,5 +1,12 @@
 import * as React from 'react'
+import { useEffect, useCallback, useId } from 'react'
 import { cn } from '@/lib/utils'
+
+// ---------------------------------------------------------------------------
+// Context for linking title to dialog via aria-labelledby
+// ---------------------------------------------------------------------------
+
+const ModalContext = React.createContext<{ titleId: string }>({ titleId: '' })
 
 // ---------------------------------------------------------------------------
 // Overlay (backdrop)
@@ -10,19 +17,33 @@ interface ModalOverlayProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const ModalOverlay = React.forwardRef<HTMLDivElement, ModalOverlayProps>(
-  ({ className, onClose, children, ...props }, ref) => (
-    <div
-      ref={ref}
-      className={cn(
-        'fixed inset-0 z-[2000] flex items-center justify-center bg-black/40',
-        className,
-      )}
-      onClick={onClose}
-      {...props}
-    >
-      {children}
-    </div>
-  ),
+  ({ className, onClose, children, ...props }, ref) => {
+    const handleKeyDown = useCallback(
+      (e: KeyboardEvent) => {
+        if (e.key === 'Escape') onClose?.()
+      },
+      [onClose],
+    )
+
+    useEffect(() => {
+      window.addEventListener('keydown', handleKeyDown)
+      return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [handleKeyDown])
+
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          'fixed inset-0 z-[2000] flex items-center justify-center bg-black/40',
+          className,
+        )}
+        onClick={onClose}
+        {...props}
+      >
+        {children}
+      </div>
+    )
+  },
 )
 ModalOverlay.displayName = 'ModalOverlay'
 
@@ -31,24 +52,31 @@ ModalOverlay.displayName = 'ModalOverlay'
 // ---------------------------------------------------------------------------
 
 const ModalContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, children, onClick, ...props }, ref) => (
-    <div
-      ref={ref}
-      role="dialog"
-      aria-modal="true"
-      className={cn(
-        'bg-background rounded-xl shadow-lg w-[440px] max-w-[90vw] max-h-[80vh] flex flex-col overflow-hidden',
-        className,
-      )}
-      onClick={(e) => {
-        e.stopPropagation()
-        onClick?.(e)
-      }}
-      {...props}
-    >
-      {children}
-    </div>
-  ),
+  ({ className, children, onClick, ...props }, ref) => {
+    const titleId = useId()
+
+    return (
+      <ModalContext.Provider value={{ titleId }}>
+        <div
+          ref={ref}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          className={cn(
+            'bg-background rounded-xl shadow-lg w-[440px] max-w-[90vw] max-h-[80vh] flex flex-col overflow-hidden',
+            className,
+          )}
+          onClick={(e) => {
+            e.stopPropagation()
+            onClick?.(e)
+          }}
+          {...props}
+        >
+          {children}
+        </div>
+      </ModalContext.Provider>
+    )
+  },
 )
 ModalContent.displayName = 'ModalContent'
 
@@ -75,13 +103,17 @@ ModalHeader.displayName = 'ModalHeader'
 // ---------------------------------------------------------------------------
 
 const ModalTitle = React.forwardRef<HTMLHeadingElement, React.HTMLAttributes<HTMLHeadingElement>>(
-  ({ className, ...props }, ref) => (
-    <h2
-      ref={ref}
-      className={cn('text-[15px] font-semibold text-foreground m-0', className)}
-      {...props}
-    />
-  ),
+  ({ className, ...props }, ref) => {
+    const { titleId } = React.useContext(ModalContext)
+    return (
+      <h2
+        ref={ref}
+        id={titleId}
+        className={cn('text-[15px] font-semibold text-foreground m-0', className)}
+        {...props}
+      />
+    )
+  },
 )
 ModalTitle.displayName = 'ModalTitle'
 
