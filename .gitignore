@@ -12,3 +12,4 @@ dist/
 nohup.out
 .kodejam/
 landing/node_modules/
+storybook-static/
