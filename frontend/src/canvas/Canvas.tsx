@@ -5,7 +5,6 @@ import type { ExcalidrawElement, FileId } from '@excalidraw/excalidraw/element/t
 import '@excalidraw/excalidraw/index.css'
 import { useCanvasPersistence } from './hooks/useCanvasPersistence'
 import { CustomToolbar } from './ui/CustomToolbar'
-import { ViewToggle } from './ui/ViewToggle'
 import { BuildButton } from './ui/BuildButton'
 
 export type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types'
@@ -221,7 +220,6 @@ export function Canvas({ onBuild, onSelectionChange, onChatOpen, onEditorMount, 
       >
         <CustomToolbar excalidrawAPI={excalidrawAPI} activeTool={activeTool} />
         <BuildButton excalidrawAPI={excalidrawAPI} onBuild={handleBuild} />
-        <ViewToggle excalidrawAPI={excalidrawAPI} />
       </Excalidraw>
     </div>
   )

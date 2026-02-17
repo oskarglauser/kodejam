@@ -8,6 +8,11 @@ import { getDb } from '../db.js'
 
 export const chatRouter = Router()
 
+const SSE_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
+const MAX_BUFFER_BYTES = 10 * 1024 * 1024 // 10 MB
+const MAX_CONCURRENT_STREAMS = 5
+let activeStreamCount = 0
+
 interface ShapeContext {
   id: string
   type: string
@@ -158,6 +163,18 @@ function parseScreenshotCommands(text: string): ScreenshotCommand[] {
   return commands
 }
 
+function validateScreenshotUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return `Invalid URL scheme: ${parsed.protocol} — only http and https are allowed`
+    }
+    return null
+  } catch {
+    return 'Invalid URL format'
+  }
+}
+
 async function captureScreenshots(
   commands: ScreenshotCommand[],
   repoPath: string
@@ -178,6 +195,12 @@ async function captureScreenshots(
       for (let i = 0; i < cmd.urls.length; i++) {
         const url = cmd.urls[i]
         const description = cmd.descriptions?.[i] || url
+
+        const urlError = validateScreenshotUrl(url)
+        if (urlError) {
+          console.error(`[chat] Skipping invalid screenshot URL: ${url} — ${urlError}`)
+          continue
+        }
 
         const page = await browser.newPage({
           viewport: { width: 1280, height: 800 },
@@ -243,6 +266,10 @@ chatRouter.post('/', (req: Request, res: Response) => {
 
   if (!message || !context?.repoPath) {
     return res.status(400).json({ error: 'message and context.repoPath are required' })
+  }
+
+  if (activeStreamCount >= MAX_CONCURRENT_STREAMS) {
+    return res.status(429).json({ error: 'Too many concurrent streams. Please try again later.' })
   }
 
   const db = getDb()
@@ -316,11 +343,28 @@ chatRouter.post('/', (req: Request, res: Response) => {
 
   console.log('[chat] Child spawned, pid:', child.pid)
 
+  activeStreamCount++
   let assistantResponse = ''
   let buffer = ''
+  let bufferSize = 0
   let clientDisconnected = false
 
+  // Kill child process after timeout
+  const timeoutId = setTimeout(() => {
+    if (!child.killed) {
+      console.error('[chat] SSE timeout reached, killing child process')
+      child.kill('SIGTERM')
+    }
+  }, SSE_TIMEOUT_MS)
+
   child.stdout.on('data', (chunk: Buffer) => {
+    bufferSize += chunk.length
+    if (bufferSize > MAX_BUFFER_BYTES) {
+      console.error('[chat] Buffer limit exceeded, killing child process')
+      if (!child.killed) child.kill('SIGTERM')
+      return
+    }
+
     buffer += chunk.toString()
 
     // Process complete lines
@@ -379,6 +423,8 @@ chatRouter.post('/', (req: Request, res: Response) => {
   })
 
   child.on('close', async (code, signal) => {
+    clearTimeout(timeoutId)
+    activeStreamCount--
     console.log('[chat] Child closed, code:', code, 'signal:', signal)
     console.log('[chat] assistantResponse length:', assistantResponse.length)
     console.log('[chat] assistantResponse preview:', assistantResponse.slice(0, 500))

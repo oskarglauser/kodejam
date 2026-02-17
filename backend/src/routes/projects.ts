@@ -16,12 +16,33 @@ projectsRouter.get('/', (_req, res) => {
   res.json(projects)
 })
 
+function validateDevUrl(url: string): string | null {
+  if (!url) return null
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return 'dev_url must use http:// or https:// scheme'
+    }
+    return null
+  } catch {
+    return 'dev_url is not a valid URL'
+  }
+}
+
+function findClaudeBinary(): string {
+  return process.env.CLAUDE_BINARY || 'claude'
+}
+
 // Create project
 projectsRouter.post('/', (req, res) => {
   const db = getDb()
   const { name, repo_path, dev_url } = req.body
   if (!name || !repo_path) {
     return res.status(400).json({ error: 'name and repo_path are required' })
+  }
+
+  if (name.length > 255) {
+    return res.status(400).json({ error: 'name must be 255 characters or less' })
   }
 
   // Validate repo_path is a local directory, not a URL
@@ -43,8 +64,19 @@ projectsRouter.post('/', (req, res) => {
     return res.status(400).json({ error: `Cannot access repo_path: ${trimmedPath}` })
   }
 
+  const trimmedDevUrl = (dev_url || '').trim()
+  if (trimmedDevUrl) {
+    const devUrlError = validateDevUrl(trimmedDevUrl)
+    if (devUrlError) {
+      return res.status(400).json({ error: devUrlError })
+    }
+    if (trimmedDevUrl.length > 2048) {
+      return res.status(400).json({ error: 'dev_url must be 2048 characters or less' })
+    }
+  }
+
   const id = uuid()
-  const settings = JSON.stringify({ dev_url: dev_url || '' })
+  const settings = JSON.stringify({ dev_url: trimmedDevUrl })
   db.prepare('INSERT INTO projects (id, name, repo_path, settings) VALUES (?, ?, ?, ?)').run(id, name, trimmedPath, settings)
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(id)
   res.status(201).json(project)
@@ -72,6 +104,9 @@ projectsRouter.patch('/:id', (req, res) => {
   const values: unknown[] = []
 
   if (name !== undefined) {
+    if (typeof name === 'string' && name.length > 255) {
+      return res.status(400).json({ error: 'name must be 255 characters or less' })
+    }
     updates.push('name = ?')
     values.push(name)
   }
@@ -97,6 +132,19 @@ projectsRouter.patch('/:id', (req, res) => {
     values.push(trimmed)
   }
   if (settings !== undefined) {
+    // Validate dev_url if present
+    if (settings.dev_url !== undefined) {
+      const devUrl = (settings.dev_url || '').trim()
+      if (devUrl) {
+        const devUrlError = validateDevUrl(devUrl)
+        if (devUrlError) {
+          return res.status(400).json({ error: devUrlError })
+        }
+        if (devUrl.length > 2048) {
+          return res.status(400).json({ error: 'dev_url must be 2048 characters or less' })
+        }
+      }
+    }
     // Merge incoming settings with existing settings
     let existing: Record<string, unknown> = {}
     try { existing = JSON.parse(project.settings) } catch {}
@@ -136,6 +184,7 @@ projectsRouter.post('/:id/pages', (req, res) => {
   const db = getDb()
   const { name } = req.body
   if (!name) return res.status(400).json({ error: 'name is required' })
+  if (name.length > 255) return res.status(400).json({ error: 'name must be 255 characters or less' })
 
   const maxOrder = db
     .prepare('SELECT MAX(sort_order) as max_order FROM pages WHERE project_id = ?')
@@ -169,7 +218,7 @@ projectsRouter.post('/:id/scan-views', (req, res) => {
 
   const prompt = `List all routes, views, pages, and major UI flows in this codebase. Return ONLY a valid JSON array of objects, each with "name" (short page name like "Home", "Login", "Dashboard") and "path" (the URL route path like "/", "/login", "/dashboard"). No explanation, no markdown, just the JSON array.`
 
-  const bin = '/Users/oskarglauser/.local/bin/claude'
+  const bin = findClaudeBinary()
   const args = [
     '-p', prompt,
     '--output-format', 'text',

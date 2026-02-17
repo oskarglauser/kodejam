@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useProjectStore } from '../../stores/projectStore'
 import { DirectoryPicker } from '../../components/DirectoryPicker'
 import type { ExcalidrawImperativeAPI } from '../../canvas/Canvas'
@@ -59,6 +59,16 @@ export function ProjectSettingsModal({ onClose, excalidrawAPI }: Props) {
     }
   }, [canvasColor, excalidrawAPI])
 
+  // Close on Escape key
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') handleCancel()
+  }, [])
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown])
+
   if (!currentProject) return null
 
   function validateRepoPath(value: string): string {
@@ -111,10 +121,10 @@ export function ProjectSettingsModal({ onClose, excalidrawAPI }: Props) {
 
   return (
     <div style={styles.overlay} onClick={handleCancel}>
-      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+      <div style={styles.modal} role="dialog" aria-modal="true" aria-label="Project Settings" onClick={(e) => e.stopPropagation()}>
         <div style={styles.header}>
           <h2 style={styles.title}>Project Settings</h2>
-          <button onClick={handleCancel} style={styles.closeBtn}>&times;</button>
+          <button onClick={handleCancel} style={styles.closeBtn} aria-label="Close">&times;</button>
         </div>
 
         <div style={styles.body}>

@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, useParams } from 'react-router-dom'
 import { useEffect } from 'react'
 import { ProjectSetup } from './features/project/ProjectSetup'
 import { Layout } from './components/Layout'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { useProjectStore } from './stores/projectStore'
 import { api } from './services/api'
 
@@ -22,11 +23,13 @@ function ProjectPage() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<ProjectSetup />} />
-        <Route path="/project/:id" element={<ProjectPage />} />
-      </Routes>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<ProjectSetup />} />
+          <Route path="/project/:id" element={<ProjectPage />} />
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   )
 }

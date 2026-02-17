@@ -1,4 +1,10 @@
-import express from 'express'
+// Environment variables:
+//   PORT          - Server port (default: 3001)
+//   CORS_ORIGIN   - Allowed CORS origin (default: http://localhost:5173)
+//   CLAUDE_BINARY - Path to claude CLI binary (default: looks up 'claude' in PATH)
+//   BROWSE_ROOT   - Optional root directory for the browse endpoint (default: user home)
+
+import express, { type Request, type Response, type NextFunction } from 'express'
 import path from 'path'
 import { readdirSync, statSync } from 'fs'
 import { homedir } from 'os'
@@ -11,9 +17,9 @@ import { buildRouter } from './routes/build.js'
 import { screenshotRouter } from './routes/screenshot.js'
 
 const app = express()
-const PORT = 3001
+const PORT = process.env.PORT || 3001
 
-app.use(cors())
+app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173' }))
 app.use(express.json({ limit: '50mb' }))
 
 // Run migrations on startup
@@ -34,8 +40,15 @@ app.use('/api/screenshot', screenshotRouter)
 
 // Browse local directories for project path picker
 app.get('/api/browse', (req, res) => {
-  const rawPath = (req.query.path as string) || homedir()
+  const browseRoot = process.env.BROWSE_ROOT || homedir()
+  const rawPath = (req.query.path as string) || browseRoot
   const dirPath = path.resolve(rawPath)
+
+  // Ensure the resolved path is within the allowed root
+  const resolvedRoot = path.resolve(browseRoot)
+  if (!dirPath.startsWith(resolvedRoot) && dirPath !== resolvedRoot) {
+    return res.status(403).json({ error: 'Path is outside the allowed directory' })
+  }
 
   try {
     const stat = statSync(dirPath)
@@ -76,6 +89,14 @@ app.get('/api/screenshots/:filename', (req, res) => {
       res.status(404).json({ error: 'Screenshot not found' })
     }
   })
+})
+
+// Global error handler — catch unhandled errors without leaking stack traces
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('[server] Unhandled error:', err.message)
+  if (!res.headersSent) {
+    res.status(500).json({ error: 'Internal server error' })
+  }
 })
 
 app.listen(PORT, () => {

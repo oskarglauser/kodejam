@@ -8,6 +8,11 @@ import type { Build } from '../types.js'
 
 export const buildRouter = Router()
 
+const SSE_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
+const MAX_BUFFER_BYTES = 10 * 1024 * 1024 // 10 MB
+const MAX_CONCURRENT_STREAMS = 5
+let activeStreamCount = 0
+
 interface ShapeInfo {
   id: string
   type: string
@@ -132,10 +137,26 @@ function streamClaudeProcess(
   onComplete: (fullText: string, exitCode: number | null) => void,
   onError: (error: string) => void
 ): void {
+  activeStreamCount++
   let fullText = ''
   let buffer = ''
+  let bufferSize = 0
+
+  const timeoutId = setTimeout(() => {
+    if (!child.killed) {
+      console.error('[build] SSE timeout reached, killing child process')
+      child.kill('SIGTERM')
+    }
+  }, SSE_TIMEOUT_MS)
 
   child.stdout.on('data', (chunk: Buffer) => {
+    bufferSize += chunk.length
+    if (bufferSize > MAX_BUFFER_BYTES) {
+      console.error('[build] Buffer limit exceeded, killing child process')
+      if (!child.killed) child.kill('SIGTERM')
+      return
+    }
+
     buffer += chunk.toString()
 
     const lines = buffer.split('\n')
@@ -183,10 +204,14 @@ function streamClaudeProcess(
   })
 
   child.on('close', (code) => {
+    clearTimeout(timeoutId)
+    activeStreamCount--
     onComplete(fullText, code)
   })
 
   child.on('error', (err) => {
+    clearTimeout(timeoutId)
+    activeStreamCount--
     onError(err.message)
     res.write(`data: ${JSON.stringify({ type: 'error', error: err.message })}\n\n`)
     res.end()
@@ -202,6 +227,10 @@ function streamClaudeProcess(
 
 // POST /plan - Generate a build plan via SSE streaming
 buildRouter.post('/plan', (req: Request, res: Response) => {
+  if (activeStreamCount >= MAX_CONCURRENT_STREAMS) {
+    return res.status(429).json({ error: 'Too many concurrent streams. Please try again later.' })
+  }
+
   const { pageId, shapes, repoPath } = req.body as PlanRequest
 
   if (!pageId || !shapes || !repoPath) {
@@ -315,6 +344,10 @@ buildRouter.post('/plan', (req: Request, res: Response) => {
 
 // POST /execute - Execute a build plan via SSE streaming
 buildRouter.post('/execute', (req: Request, res: Response) => {
+  if (activeStreamCount >= MAX_CONCURRENT_STREAMS) {
+    return res.status(429).json({ error: 'Too many concurrent streams. Please try again later.' })
+  }
+
   const { buildId, plan, repoPath } = req.body as ExecuteRequest
 
   if (!buildId || !plan || !repoPath) {

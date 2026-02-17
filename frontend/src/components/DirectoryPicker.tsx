@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 interface Props {
   initialPath?: string
@@ -40,6 +40,16 @@ export function DirectoryPicker({ initialPath, onSelect, onCancel }: Props) {
     browse(initialPath || undefined)
   }, [])
 
+  // Close on Escape key
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') onCancel()
+  }, [onCancel])
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown])
+
   const pathSegments = currentPath.split('/').filter(Boolean)
 
   const navigateTo = (segmentIndex: number) => {
@@ -60,10 +70,10 @@ export function DirectoryPicker({ initialPath, onSelect, onCancel }: Props) {
 
   return (
     <div style={styles.overlay} onClick={onCancel}>
-      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+      <div style={styles.modal} role="dialog" aria-modal="true" aria-label="Select project folder" onClick={(e) => e.stopPropagation()}>
         <div style={styles.header}>
           <h3 style={styles.title}>Select project folder</h3>
-          <button onClick={onCancel} style={styles.closeBtn}>&times;</button>
+          <button onClick={onCancel} style={styles.closeBtn} aria-label="Close">&times;</button>
         </div>
 
         {/* Breadcrumbs */}

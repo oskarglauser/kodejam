@@ -3,12 +3,29 @@ import { chromium } from 'playwright'
 
 export const screenshotRouter = Router()
 
+function validateScreenshotUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return `Invalid URL scheme: ${parsed.protocol} — only http and https are allowed`
+    }
+    return null
+  } catch {
+    return 'Invalid URL format'
+  }
+}
+
 // POST / - Capture a screenshot of a URL
 screenshotRouter.post('/', async (req: Request, res: Response) => {
   const { url, width = 1280, height = 800, selector } = req.body
 
   if (!url) {
     return res.status(400).json({ error: 'url is required' })
+  }
+
+  const urlError = validateScreenshotUrl(url)
+  if (urlError) {
+    return res.status(400).json({ error: urlError })
   }
 
   let browser
@@ -62,6 +79,13 @@ screenshotRouter.post('/batch', async (req: Request, res: Response) => {
 
   if (!urls || !Array.isArray(urls) || urls.length === 0) {
     return res.status(400).json({ error: 'urls array is required' })
+  }
+
+  for (const url of urls) {
+    const urlError = validateScreenshotUrl(url)
+    if (urlError) {
+      return res.status(400).json({ error: `${urlError}: ${url}` })
+    }
   }
 
   let browser

@@ -105,6 +105,15 @@ export function ChatPanel({
     inputRef.current?.focus()
   }, [])
 
+  // Close panel on Escape key
+  useEffect(() => {
+    const handleEscape = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleEscape)
+    return () => window.removeEventListener('keydown', handleEscape)
+  }, [onClose])
+
   const handleSend = () => {
     const trimmed = input.trim()
     if (!trimmed || isStreaming || isBuilding) return

@@ -9,6 +9,7 @@ export function ProjectSetup() {
   const [repoPath, setRepoPath] = useState('')
   const [devUrl, setDevUrl] = useState('')
   const [creating, setCreating] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [repoPathError, setRepoPathError] = useState('')
   const [showDirPicker, setShowDirPicker] = useState(false)
   const navigate = useNavigate()
@@ -41,12 +42,15 @@ export function ProjectSetup() {
       return
     }
     if (!name.trim() || !repoPath.trim()) return
+    setSubmitting(true)
     try {
       const project = await createProject(name.trim(), repoPath.trim(), devUrl.trim() || undefined)
       navigate(`/project/${project.id}`)
     } catch (err: any) {
       const message = err?.message || 'Failed to create project'
       setRepoPathError(message)
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -96,7 +100,8 @@ export function ProjectSetup() {
               placeholder="Project name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md mb-3 focus:outline-none focus:border-blue-400"
+              disabled={submitting}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md mb-3 focus:outline-none focus:border-blue-400 disabled:opacity-50"
             />
             <label className="text-xs font-medium text-gray-500 mb-1">Local project path</label>
             <div className="flex gap-2 mb-1">
@@ -105,7 +110,8 @@ export function ProjectSetup() {
                 placeholder="/Users/you/projects/myapp"
                 value={repoPath}
                 onChange={(e) => handleRepoPathChange(e.target.value)}
-                className={`flex-1 px-3 py-2 text-sm border rounded-md focus:outline-none ${repoPathError ? 'border-red-400 focus:border-red-500' : 'border-gray-300 focus:border-blue-400'}`}
+                disabled={submitting}
+                className={`flex-1 px-3 py-2 text-sm border rounded-md focus:outline-none disabled:opacity-50 ${repoPathError ? 'border-red-400 focus:border-red-500' : 'border-gray-300 focus:border-blue-400'}`}
               />
               <button
                 type="button"
@@ -135,15 +141,16 @@ export function ProjectSetup() {
               placeholder="Dev server URL (e.g. http://localhost:3000)"
               value={devUrl}
               onChange={(e) => setDevUrl(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md mb-4 focus:outline-none focus:border-blue-400"
+              disabled={submitting}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md mb-4 focus:outline-none focus:border-blue-400 disabled:opacity-50"
             />
             <div className="flex gap-2">
               <button
                 onClick={handleCreate}
-                disabled={!name.trim() || !repoPath.trim() || !!repoPathError}
+                disabled={!name.trim() || !repoPath.trim() || !!repoPathError || submitting}
                 className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-40"
               >
-                Create
+                {submitting ? 'Creating...' : 'Create'}
               </button>
               <button
                 onClick={() => setCreating(false)}

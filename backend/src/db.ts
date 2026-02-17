@@ -70,5 +70,13 @@ export function runMigrations() {
     );
   `)
 
+  // Add indexes for common query patterns
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_pages_project ON pages(project_id);
+    CREATE INDEX IF NOT EXISTS idx_threads_page ON ai_threads(page_id);
+    CREATE INDEX IF NOT EXISTS idx_builds_page ON builds(page_id);
+    CREATE INDEX IF NOT EXISTS idx_history_page ON canvas_history(page_id);
+  `)
+
   console.log('Database migrations complete')
 }

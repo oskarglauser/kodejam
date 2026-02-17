@@ -1,20 +1,29 @@
 const BASE = '/api'
+const REQUEST_TIMEOUT_MS = 30_000
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  })
-  if (!res.ok) {
-    const body = await res.text()
-    let message = `API error ${res.status}: ${body}`
-    try {
-      const parsed = JSON.parse(body)
-      if (parsed.error) message = parsed.error
-    } catch {}
-    throw new Error(message)
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      headers: { 'Content-Type': 'application/json' },
+      ...options,
+      signal: options?.signal ?? controller.signal,
+    })
+    if (!res.ok) {
+      const body = await res.text()
+      let message = `API error ${res.status}: ${body}`
+      try {
+        const parsed = JSON.parse(body)
+        if (parsed.error) message = parsed.error
+      } catch {}
+      throw new Error(message)
+    }
+    return res.json()
+  } finally {
+    clearTimeout(timeout)
   }
-  return res.json()
 }
 
 // Projects
