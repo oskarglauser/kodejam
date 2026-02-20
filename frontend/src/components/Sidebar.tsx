@@ -1,18 +1,17 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useProjectStore } from '../stores/projectStore'
 import { api } from '../services/api'
+import { IconButton } from './ui/icon-button'
 
-interface SidebarProps {
-  onFetchScreenshot?: (pageName: string) => void
-}
-
-export function Sidebar({ onFetchScreenshot }: SidebarProps) {
+export function Sidebar() {
   const { pages, currentPage, currentProject, setCurrentPage, createPage, deletePage, updatePage } = useProjectStore()
   const [newPageName, setNewPageName] = useState('')
   const [adding, setAdding] = useState(false)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [scanning, setScanning] = useState(false)
+  const [menuPageId, setMenuPageId] = useState<string | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const handleAddPage = async () => {
     if (!newPageName.trim()) return
@@ -25,6 +24,7 @@ export function Sidebar({ onFetchScreenshot }: SidebarProps) {
   const startRename = (pageId: string, currentName: string) => {
     setRenamingId(pageId)
     setRenameValue(currentName)
+    setMenuPageId(null)
   }
 
   const handleRename = async () => {
@@ -54,6 +54,18 @@ export function Sidebar({ onFetchScreenshot }: SidebarProps) {
       setScanning(false)
     }
   }
+
+  // Close context menu on click outside
+  useEffect(() => {
+    if (!menuPageId) return
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuPageId(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [menuPageId])
 
   return (
     <aside className="w-56 bg-white border-r border-gray-200 flex flex-col h-full">
@@ -115,7 +127,7 @@ export function Sidebar({ onFetchScreenshot }: SidebarProps) {
         {pages.map((page) => (
           <div
             key={page.id}
-            className={`group flex items-center px-3 py-2 text-sm cursor-pointer ${
+            className={`group relative flex items-center px-3 py-2 text-sm cursor-pointer ${
               currentPage?.id === page.id
                 ? 'bg-blue-50 text-blue-700 font-medium'
                 : 'text-gray-600 hover:bg-gray-50'
@@ -140,31 +152,60 @@ export function Sidebar({ onFetchScreenshot }: SidebarProps) {
             ) : (
               <span className="flex-1 truncate">{page.name}</span>
             )}
+
             {renamingId !== page.id && (
-              <div className="hidden group-hover:flex items-center gap-0.5 ml-1">
-                {onFetchScreenshot && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onFetchScreenshot(page.name)
-                    }}
-                    className="text-gray-400 hover:text-blue-500 text-xs"
-                    title="Fetch screenshots for this page"
-                  >
-                    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="2" y="3" width="20" height="14" rx="2" />
-                      <circle cx="12" cy="10" r="3" />
-                    </svg>
-                  </button>
-                )}
+              <div className="hidden group-hover:flex items-center ml-1">
+                <IconButton
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setMenuPageId(menuPageId === page.id ? null : page.id)
+                  }}
+                  title="More actions"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="5" r="2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <circle cx="12" cy="19" r="2" />
+                  </svg>
+                </IconButton>
+              </div>
+            )}
+
+            {/* Context menu dropdown */}
+            {menuPageId === page.id && (
+              <div
+                ref={menuRef}
+                className="absolute right-2 top-8 z-50 bg-white border border-border rounded-md shadow-lg py-1 min-w-[120px]"
+              >
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
+                    startRename(page.id, page.name)
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-secondary"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
+                  </svg>
+                  Rename
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setMenuPageId(null)
                     if (confirm(`Delete "${page.name}"?`)) deletePage(page.id)
                   }}
-                  className="text-gray-400 hover:text-red-500 text-xs"
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10"
                 >
-                  x
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 6h18" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                  Delete
                 </button>
               </div>
             )}

@@ -23,27 +23,9 @@ export function BuildButton({ excalidrawAPI, onBuild }: BuildButtonProps) {
   return (
     <button
       onClick={() => onBuild(selectedIds)}
-      style={{
-        position: 'absolute',
-        bottom: 64,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        padding: '8px 20px',
-        fontSize: 13,
-        fontWeight: 600,
-        color: 'white',
-        background: '#2563eb',
-        border: 'none',
-        borderRadius: 8,
-        cursor: 'pointer',
-        boxShadow: '0 2px 8px rgba(37,99,235,0.3)',
-        zIndex: 100,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-      }}
+      className="absolute bottom-16 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-5 py-2 text-[13px] font-semibold text-white bg-primary rounded-lg shadow-[0_2px_8px_rgba(37,99,235,0.3)] z-[100] border-none cursor-pointer hover:bg-primary/90"
     >
-      <span style={{ fontSize: 14 }}>&#9654;</span>
+      <span className="text-sm">&#9654;</span>
       Build ({selectedIds.length})
     </button>
   )

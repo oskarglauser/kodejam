@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from 'react'
 import Markdown from 'react-markdown'
 import { useAIChat, type ScreenshotEvent } from './hooks/useAIChat'
+import { Button } from '../../components/ui/button'
+import { Textarea } from '../../components/ui/textarea'
+import { Chip } from '../../components/ui/chip'
 
 interface SelectedShape {
   id: string
@@ -73,7 +76,6 @@ export function ChatPanel({
   // Auto-scroll to bottom when messages update
   useEffect(() => {
     if (!hasScrolledInitialRef.current && messages.length > 0) {
-      // First load: jump instantly so user doesn't see scroll animation
       hasScrolledInitialRef.current = true
       messagesEndRef.current?.scrollIntoView({ behavior: 'instant' })
     } else if (hasScrolledInitialRef.current) {
@@ -88,7 +90,7 @@ export function ChatPanel({
       initialMessageSentRef.current = true
       setIsBuildPlan(true)
       setScreenshotPreviews([])
-      clearMessages()  // Reset thread so build gets fresh context
+      clearMessages()
       sendMessage(initialMessage, {
         shapes: selectedShapes,
         repoPath,
@@ -140,14 +142,12 @@ export function ChatPanel({
 
   // Execute the build plan via /api/build/execute
   const handleProceedBuild = useCallback(async () => {
-    // Find the last assistant message (the plan)
     const planMessage = [...messages].reverse().find((m) => m.role === 'assistant')
     if (!planMessage) return
 
     setIsBuildPlan(false)
     setIsBuilding(true)
 
-    // Add a user message indicating approval
     const userMsg = { role: 'user' as const, content: 'Proceed with the build plan.', timestamp: new Date().toISOString() }
     const assistantMsg = { role: 'assistant' as const, content: '', timestamp: new Date().toISOString() }
     setMessages((prev) => [...prev, userMsg, assistantMsg])
@@ -247,30 +247,30 @@ export function ChatPanel({
     window.addEventListener('mouseup', onUp)
   }, [width, onWidthChange])
 
-  // Show plan approval buttons when: plan is done streaming, it was a build plan, and not currently building
   const showPlanApproval = isBuildPlan && !isStreaming && !isBuilding && messages.length > 0 && messages[messages.length - 1].role === 'assistant'
 
   return (
-    <div style={{ ...styles.container, width, minWidth: width }}>
+    <div className="relative flex flex-col bg-white border-l border-border" style={{ width, minWidth: width }}>
       {/* Resize handle */}
       {onWidthChange && (
         <div
           onMouseDown={handleResizeStart}
-          style={styles.resizeHandle}
+          className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize z-10"
         />
       )}
+
       {/* Header */}
-      <div style={styles.header}>
-        <span style={styles.headerTitle}>Claude</span>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0 gap-2">
+        <span className="text-sm font-semibold text-foreground">Claude</span>
         {devUrl && (
-          <span style={styles.devUrlBadge} title={devUrl}>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-50 text-green-600 font-medium flex-1 text-right truncate" title={devUrl}>
             {new URL(devUrl).host}
           </span>
         )}
         {messages.length > 0 && (
           <button
             onClick={() => { clearMessages(); setIsBuildPlan(false) }}
-            style={styles.headerIconButton}
+            className="bg-transparent border-none text-muted-foreground cursor-pointer p-0.5 flex items-center rounded hover:text-foreground"
             title="Clear chat"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -284,22 +284,22 @@ export function ChatPanel({
 
       {/* Context chips */}
       {selectedShapes.length > 0 && (
-        <div style={styles.contextBar}>
-          <span style={styles.contextLabel}>Context:</span>
-          <div style={styles.chipContainer}>
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-secondary shrink-0 flex-wrap">
+          <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Context:</span>
+          <div className="flex gap-1 flex-wrap">
             {selectedShapes.map((shape) => (
-              <span key={shape.id} style={styles.chip}>
+              <Chip key={shape.id}>
                 {shape.label || shape.type}
-              </span>
+              </Chip>
             ))}
           </div>
         </div>
       )}
 
       {/* Messages */}
-      <div style={styles.messagesContainer}>
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
         {messages.length === 0 && (
-          <div style={styles.emptyState}>
+          <div className="text-center text-muted-foreground text-[13px] py-10 px-5 leading-relaxed">
             {devUrl
               ? 'Ask the AI about your design, request screenshots of your app, or get help building components.'
               : 'Ask the AI about your design, request code changes, or get help building components.'}
@@ -309,27 +309,25 @@ export function ChatPanel({
         {messages.map((msg, idx) => (
           <div
             key={idx}
-            style={{
-              ...styles.messageRow,
-              justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-            }}
+            className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              style={{
-                ...styles.messageBubble,
-                ...(msg.role === 'user' ? styles.userBubble : styles.assistantBubble),
-              }}
+              className={`max-w-[85%] px-3 py-2 rounded-xl text-[13px] leading-relaxed break-words ${
+                msg.role === 'user'
+                  ? 'bg-primary text-primary-foreground rounded-br-sm'
+                  : 'bg-secondary text-secondary-foreground rounded-bl-sm'
+              }`}
             >
               {msg.role === 'assistant' ? (
                 stripScreenshotCommands(msg.content) ? (
-                  <div className="chat-markdown" style={styles.markdownContainer}>
+                  <div className="chat-markdown text-[13px] leading-relaxed">
                     <Markdown>{stripScreenshotCommands(msg.content)}</Markdown>
                   </div>
                 ) : (isStreaming || isBuilding) && idx === messages.length - 1 ? (
-                  <div style={styles.streamingIndicator}>
-                    <span className="streaming-dot" style={{ ...styles.dot, animationDelay: '0s' }}>&#9679;</span>
-                    <span className="streaming-dot" style={{ ...styles.dot, animationDelay: '0.2s' }}>&#9679;</span>
-                    <span className="streaming-dot" style={{ ...styles.dot, animationDelay: '0.4s' }}>&#9679;</span>
+                  <div className="flex gap-1 py-1 items-center">
+                    <span className="text-[8px] text-muted-foreground animate-[dotPulse_1.2s_ease-in-out_infinite]">&#9679;</span>
+                    <span className="text-[8px] text-muted-foreground animate-[dotPulse_1.2s_ease-in-out_infinite_0.2s]">&#9679;</span>
+                    <span className="text-[8px] text-muted-foreground animate-[dotPulse_1.2s_ease-in-out_infinite_0.4s]">&#9679;</span>
                   </div>
                 ) : (
                   <span>&nbsp;</span>
@@ -341,49 +339,50 @@ export function ChatPanel({
           </div>
         ))}
 
-        {/* Streaming activity indicator — shows while Claude is still working */}
+        {/* Streaming activity indicator */}
         {isStreaming && messages.length > 0 && messages[messages.length - 1].role === 'assistant' && messages[messages.length - 1].content && (
-          <div style={styles.thinkingIndicator}>
-            <div style={styles.thinkingDot} />
+          <div className="flex items-center gap-1.5 px-2 py-1 text-[11px] text-muted-foreground">
+            <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-[buildPulse_1.5s_infinite]" />
             <span>Thinking...</span>
           </div>
         )}
 
         {/* Plan approval buttons */}
         {showPlanApproval && (
-          <div style={styles.planApproval}>
-            <button onClick={handleProceedBuild} style={styles.proceedButton}>
+          <div className="flex gap-2 py-1">
+            <Button onClick={handleProceedBuild} size="sm" className="flex-1 bg-green-600 hover:bg-green-700">
               Proceed with Build
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => { setIsBuildPlan(false); inputRef.current?.focus() }}
-              style={styles.editPlanButton}
+              variant="outline"
+              size="sm"
             >
               Edit Plan
-            </button>
+            </Button>
           </div>
         )}
 
         {/* Building indicator */}
         {isBuilding && (
-          <div style={styles.buildingIndicator}>
-            <div style={styles.buildingDot} />
+          <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 rounded-lg text-xs text-primary font-medium">
+            <div className="w-2 h-2 rounded-full bg-primary animate-[buildPulse_1.5s_infinite]" />
             <span>Building...</span>
-            <button onClick={handleCancelBuild} style={styles.cancelBuildButton}>Cancel</button>
+            <button onClick={handleCancelBuild} className="ml-auto px-2 py-0.5 text-[11px] text-destructive bg-transparent border border-destructive rounded cursor-pointer">Cancel</button>
           </div>
         )}
 
         {/* Screenshot capturing indicator */}
         {isCapturingScreenshots && (
-          <div style={styles.screenshotCapturing}>
-            <div style={styles.captureIcon}>📸</div>
+          <div className="flex items-center gap-2 px-3 py-2 bg-yellow-50 rounded-lg text-xs text-yellow-800">
+            <span className="text-base">📸</span>
             <span>Capturing screenshots...</span>
           </div>
         )}
 
         {/* Screenshot added confirmation */}
         {screenshotPreviews.length > 0 && (
-          <div style={styles.screenshotAdded}>
+          <div className="px-3 py-2 bg-green-50 rounded-lg text-xs text-green-600 font-medium">
             Added {screenshotPreviews.length} screenshot{screenshotPreviews.length > 1 ? 's' : ''} to canvas
           </div>
         )}
@@ -392,40 +391,33 @@ export function ChatPanel({
       </div>
 
       {/* Input area */}
-      <div style={styles.inputArea}>
-        <textarea
+      <div className="border-t border-border px-4 py-3 shrink-0">
+        <Textarea
           ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={devUrl ? 'Ask the AI... (try "show me the homepage")' : 'Ask the AI...'}
           rows={2}
-          style={styles.textarea}
           disabled={isStreaming || isBuilding}
+          className="font-[inherit]"
         />
-        <div style={styles.inputActions}>
+        <div className="flex justify-end mt-2">
           {isStreaming ? (
-            <button onClick={cancelStream} style={styles.cancelButton}>
+            <Button onClick={cancelStream} variant="destructive" size="sm">
               Stop
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
               onClick={handleSend}
               disabled={!input.trim() || isBuilding}
-              style={{
-                ...styles.sendButton,
-                opacity: input.trim() && !isBuilding ? 1 : 0.4,
-                cursor: input.trim() && !isBuilding ? 'pointer' : 'default',
-              }}
+              size="sm"
             >
               Send
-            </button>
+            </Button>
           )}
         </div>
       </div>
-
-      {/* Markdown styles */}
-      <style>{markdownStyles}</style>
     </div>
   )
 }
@@ -445,373 +437,4 @@ function extractBuildText(event: any): string {
 
 function stripScreenshotCommands(text: string): string {
   return text.replace(/\[SCREENSHOT:\{[^]*?\}\]/g, '').replace(/\n{3,}/g, '\n\n').trim()
-}
-
-const markdownStyles = `
-.chat-markdown p { margin: 0 0 8px 0; }
-.chat-markdown p:last-child { margin-bottom: 0; }
-.chat-markdown code {
-  background: rgba(0,0,0,0.06);
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-size: 12px;
-  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
-}
-.chat-markdown pre {
-  background: #1e1e1e;
-  color: #d4d4d4;
-  padding: 8px 10px;
-  border-radius: 6px;
-  overflow-x: auto;
-  margin: 6px 0;
-  font-size: 11px;
-  line-height: 1.5;
-}
-.chat-markdown pre code {
-  background: none;
-  padding: 0;
-  color: inherit;
-  font-size: inherit;
-}
-.chat-markdown ul, .chat-markdown ol {
-  margin: 4px 0;
-  padding-left: 20px;
-}
-.chat-markdown li { margin: 2px 0; }
-.chat-markdown h1, .chat-markdown h2, .chat-markdown h3 {
-  margin: 8px 0 4px 0;
-  font-weight: 600;
-}
-.chat-markdown h1 { font-size: 15px; }
-.chat-markdown h2 { font-size: 14px; }
-.chat-markdown h3 { font-size: 13px; }
-.chat-markdown blockquote {
-  border-left: 3px solid #d1d5db;
-  margin: 4px 0;
-  padding-left: 10px;
-  color: #6b7280;
-}
-.chat-markdown a {
-  color: #2563eb;
-  text-decoration: underline;
-}
-.chat-markdown hr {
-  border: none;
-  border-top: 1px solid #e5e7eb;
-  margin: 8px 0;
-}
-@keyframes dotPulse {
-  0%, 80%, 100% { opacity: 0.3; }
-  40% { opacity: 1; }
-}
-@keyframes buildPulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 1; }
-}
-`
-
-// ---------------------------------------------------------------------------
-// Inline styles
-// ---------------------------------------------------------------------------
-
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    position: 'relative' as const,
-    display: 'flex',
-    flexDirection: 'column',
-    background: '#ffffff',
-    borderLeft: '1px solid #e5e7eb',
-    fontFamily:
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-  },
-
-  resizeHandle: {
-    position: 'absolute' as const,
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 4,
-    cursor: 'col-resize',
-    zIndex: 10,
-    background: 'transparent',
-  },
-
-  // Header
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '12px 16px',
-    borderBottom: '1px solid #e5e7eb',
-    flexShrink: 0,
-    gap: 8,
-  },
-  headerTitle: {
-    fontSize: 14,
-    fontWeight: 600,
-    color: '#111827',
-  },
-  devUrlBadge: {
-    fontSize: 10,
-    padding: '2px 6px',
-    borderRadius: 4,
-    background: '#f0fdf4',
-    color: '#16a34a',
-    fontWeight: 500,
-    flex: 1,
-    textAlign: 'right' as const,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap' as const,
-  },
-  headerIconButton: {
-    background: 'none',
-    border: 'none',
-    color: '#9ca3af',
-    cursor: 'pointer',
-    padding: '2px 4px',
-    lineHeight: 1,
-    display: 'flex',
-    alignItems: 'center',
-    borderRadius: 4,
-  },
-
-  // Context chips
-  contextBar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '8px 16px',
-    borderBottom: '1px solid #f3f4f6',
-    flexShrink: 0,
-    flexWrap: 'wrap' as const,
-  },
-  contextLabel: {
-    fontSize: 11,
-    color: '#9ca3af',
-    fontWeight: 500,
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.05em',
-  },
-  chipContainer: {
-    display: 'flex',
-    gap: 4,
-    flexWrap: 'wrap' as const,
-  },
-  chip: {
-    fontSize: 11,
-    padding: '2px 8px',
-    borderRadius: 12,
-    background: '#eff6ff',
-    color: '#2563eb',
-    fontWeight: 500,
-    whiteSpace: 'nowrap' as const,
-  },
-
-  // Messages
-  messagesContainer: {
-    flex: 1,
-    overflowY: 'auto' as const,
-    padding: '16px',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 8,
-  },
-  emptyState: {
-    textAlign: 'center' as const,
-    color: '#9ca3af',
-    fontSize: 13,
-    padding: '40px 20px',
-    lineHeight: 1.6,
-  },
-  messageRow: {
-    display: 'flex',
-    width: '100%',
-  },
-  messageBubble: {
-    maxWidth: '85%',
-    padding: '8px 12px',
-    borderRadius: 12,
-    fontSize: 13,
-    lineHeight: 1.5,
-    wordBreak: 'break-word' as const,
-  },
-  userBubble: {
-    background: '#2563eb',
-    color: '#ffffff',
-    borderBottomRightRadius: 4,
-  },
-  assistantBubble: {
-    background: '#f3f4f6',
-    color: '#1f2937',
-    borderBottomLeftRadius: 4,
-  },
-  markdownContainer: {
-    fontSize: 13,
-    lineHeight: 1.5,
-  },
-
-  // Plan approval
-  planApproval: {
-    display: 'flex',
-    gap: 8,
-    padding: '4px 0',
-  },
-  proceedButton: {
-    padding: '8px 16px',
-    fontSize: 12,
-    fontWeight: 600,
-    color: '#ffffff',
-    background: '#16a34a',
-    border: 'none',
-    borderRadius: 6,
-    cursor: 'pointer',
-    flex: 1,
-  },
-  editPlanButton: {
-    padding: '8px 16px',
-    fontSize: 12,
-    fontWeight: 600,
-    color: '#374151',
-    background: '#f3f4f6',
-    border: '1px solid #d1d5db',
-    borderRadius: 6,
-    cursor: 'pointer',
-  },
-
-  // Building indicator
-  buildingIndicator: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '8px 12px',
-    background: '#eff6ff',
-    borderRadius: 8,
-    fontSize: 12,
-    color: '#2563eb',
-    fontWeight: 500,
-  },
-  buildingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: '50%',
-    background: '#2563eb',
-    animationName: 'buildPulse',
-    animationDuration: '1.5s',
-    animationIterationCount: 'infinite',
-  },
-  cancelBuildButton: {
-    marginLeft: 'auto',
-    padding: '2px 8px',
-    fontSize: 11,
-    color: '#ef4444',
-    background: 'none',
-    border: '1px solid #ef4444',
-    borderRadius: 4,
-    cursor: 'pointer',
-  },
-
-  // Screenshot capturing
-  screenshotCapturing: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '8px 12px',
-    background: '#fefce8',
-    borderRadius: 8,
-    fontSize: 12,
-    color: '#854d0e',
-  },
-  captureIcon: {
-    fontSize: 16,
-  },
-
-  // Screenshot added confirmation
-  screenshotAdded: {
-    padding: '8px 12px',
-    background: '#f0fdf4',
-    borderRadius: 8,
-    fontSize: 12,
-    color: '#16a34a',
-    fontWeight: 500,
-  },
-
-  // Thinking indicator (shows while streaming with content)
-  thinkingIndicator: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '4px 8px',
-    fontSize: 11,
-    color: '#9ca3af',
-  },
-  thinkingDot: {
-    width: 6,
-    height: 6,
-    borderRadius: '50%',
-    background: '#9ca3af',
-    animationName: 'buildPulse',
-    animationDuration: '1.5s',
-    animationIterationCount: 'infinite',
-  },
-
-  // Streaming indicator
-  streamingIndicator: {
-    display: 'flex',
-    gap: 4,
-    padding: '4px 0',
-    alignItems: 'center',
-  },
-  dot: {
-    fontSize: 8,
-    color: '#9ca3af',
-    animationName: 'dotPulse',
-    animationDuration: '1.2s',
-    animationIterationCount: 'infinite',
-    animationTimingFunction: 'ease-in-out',
-  },
-
-  // Input area
-  inputArea: {
-    borderTop: '1px solid #e5e7eb',
-    padding: '12px 16px',
-    flexShrink: 0,
-  },
-  textarea: {
-    width: '100%',
-    resize: 'none' as const,
-    border: '1px solid #d1d5db',
-    borderRadius: 8,
-    padding: '8px 12px',
-    fontSize: 13,
-    fontFamily: 'inherit',
-    lineHeight: 1.5,
-    outline: 'none',
-    boxSizing: 'border-box' as const,
-  },
-  inputActions: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    marginTop: 8,
-  },
-  sendButton: {
-    padding: '6px 16px',
-    fontSize: 12,
-    fontWeight: 600,
-    color: '#ffffff',
-    background: '#2563eb',
-    border: 'none',
-    borderRadius: 6,
-    cursor: 'pointer',
-  },
-  cancelButton: {
-    padding: '6px 16px',
-    fontSize: 12,
-    fontWeight: 600,
-    color: '#ffffff',
-    background: '#ef4444',
-    border: 'none',
-    borderRadius: 6,
-    cursor: 'pointer',
-  },
 }

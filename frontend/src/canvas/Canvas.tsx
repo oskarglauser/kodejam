@@ -15,6 +15,9 @@ interface CanvasProps {
   onChatOpen?: () => void
   onEditorMount?: (api: ExcalidrawImperativeAPI) => void
   canvasColor?: string
+  devUrl?: string
+  screenshotOpen?: boolean
+  onScreenshotClick?: () => void
 }
 
 function extractShapeInfo(element: ExcalidrawElement): { id: string; type: string; label: string; description?: string; imageUrl?: string } {
@@ -26,7 +29,7 @@ function extractShapeInfo(element: ExcalidrawElement): { id: string; type: strin
   return { id: element.id, type: kodejamType, label, description, imageUrl }
 }
 
-export function Canvas({ onBuild, onSelectionChange, onChatOpen, onEditorMount, canvasColor }: CanvasProps) {
+export function Canvas({ onBuild, onSelectionChange, onChatOpen, onEditorMount, canvasColor, devUrl, screenshotOpen, onScreenshotClick }: CanvasProps) {
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null)
   const [activeTool, setActiveTool] = useState('selection')
   const prevSelectedIdsRef = useRef<string>('')
@@ -47,10 +50,10 @@ export function Canvas({ onBuild, onSelectionChange, onChatOpen, onEditorMount, 
     }
   }, [excalidrawAPI, onEditorMount])
 
-  // Apply canvas background color dynamically when settings change
+  // Keep Excalidraw background transparent — actual color is rendered via CSS on the wrapper
   useEffect(() => {
-    if (excalidrawAPI && canvasColor) {
-      excalidrawAPI.updateScene({ appState: { viewBackgroundColor: canvasColor } })
+    if (excalidrawAPI) {
+      excalidrawAPI.updateScene({ appState: { viewBackgroundColor: 'transparent' } })
     }
   }, [excalidrawAPI, canvasColor])
 
@@ -207,7 +210,7 @@ export function Canvas({ onBuild, onSelectionChange, onChatOpen, onEditorMount, 
         initialData={{
           elements: persistedData?.elements,
           files: persistedData?.files,
-          appState: { viewBackgroundColor: canvasColor || '#d4d4d4' },
+          appState: { viewBackgroundColor: 'transparent' },
         }}
         UIOptions={{
           canvasActions: {
@@ -218,7 +221,7 @@ export function Canvas({ onBuild, onSelectionChange, onChatOpen, onEditorMount, 
         }}
         theme="light"
       >
-        <CustomToolbar excalidrawAPI={excalidrawAPI} activeTool={activeTool} />
+        <CustomToolbar excalidrawAPI={excalidrawAPI} activeTool={activeTool} devUrl={devUrl} screenshotOpen={screenshotOpen} onScreenshotClick={onScreenshotClick} />
         <BuildButton excalidrawAPI={excalidrawAPI} onBuild={handleBuild} />
       </Excalidraw>
     </div>

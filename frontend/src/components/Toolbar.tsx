@@ -11,9 +11,8 @@ interface ToolbarProps {
 
 export function Toolbar({ excalidrawAPI }: ToolbarProps) {
   const { currentProject, updateProject } = useProjectStore()
-  const { viewMode, setViewMode, chatOpen, toggleChat, historyOpen, toggleHistory } = useUIStore()
+  const { viewMode, setViewMode, chatOpen, toggleChat, historyOpen, toggleHistory, showSettings, setShowSettings } = useUIStore()
   const navigate = useNavigate()
-  const [showSettings, setShowSettings] = useState(false)
   const [isRenaming, setIsRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState('')
   const [zoomLevel, setZoomLevel] = useState(100)

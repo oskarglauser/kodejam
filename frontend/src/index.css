@@ -34,9 +34,79 @@ html, body, #root {
   margin: 0;
 }
 
-/* Excalidraw canvas background */
+/* Excalidraw canvas background — transparent so CSS dot grid shows through */
 .excalidraw {
-  --color-surface-lowest: var(--kodejam-canvas-bg, #d4d4d4) !important;
+  --color-surface-lowest: transparent !important;
+}
+
+/* Dot grid pattern behind canvas content */
+.excalidraw .excalidraw__canvas-wrapper {
+  background-color: var(--kodejam-canvas-bg, #d4d4d4);
+  background-image: radial-gradient(circle, rgba(0, 0, 0, 0.13) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Chat markdown styles */
+.chat-markdown p { margin: 0 0 8px 0; }
+.chat-markdown p:last-child { margin-bottom: 0; }
+.chat-markdown code {
+  background: rgba(0,0,0,0.06);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+}
+.chat-markdown pre {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 8px 10px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 6px 0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.chat-markdown pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+.chat-markdown ul, .chat-markdown ol {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+.chat-markdown li { margin: 2px 0; }
+.chat-markdown h1, .chat-markdown h2, .chat-markdown h3 {
+  margin: 8px 0 4px 0;
+  font-weight: 600;
+}
+.chat-markdown h1 { font-size: 15px; }
+.chat-markdown h2 { font-size: 14px; }
+.chat-markdown h3 { font-size: 13px; }
+.chat-markdown blockquote {
+  border-left: 3px solid hsl(var(--border));
+  margin: 4px 0;
+  padding-left: 10px;
+  color: hsl(var(--muted-foreground));
+}
+.chat-markdown a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+}
+.chat-markdown hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+  margin: 8px 0;
+}
+
+@keyframes dotPulse {
+  0%, 80%, 100% { opacity: 0.3; }
+  40% { opacity: 1; }
+}
+@keyframes buildPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
 }
 
 /* Hide Excalidraw's default UI — we use our own toolbar */

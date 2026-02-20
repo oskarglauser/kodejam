@@ -4,6 +4,9 @@ import { createWireframeBox, createStickyNote } from '../Canvas'
 interface CustomToolbarProps {
   excalidrawAPI: ExcalidrawImperativeAPI | null
   activeTool: string
+  devUrl?: string
+  screenshotOpen?: boolean
+  onScreenshotClick?: () => void
 }
 
 const tools = [
@@ -58,7 +61,7 @@ const tools = [
   )},
 ]
 
-export function CustomToolbar({ excalidrawAPI, activeTool }: CustomToolbarProps) {
+export function CustomToolbar({ excalidrawAPI, activeTool, devUrl, screenshotOpen, onScreenshotClick }: CustomToolbarProps) {
   const handleToolClick = (tool: typeof tools[number]) => {
     if (!excalidrawAPI) return
 
@@ -78,22 +81,7 @@ export function CustomToolbar({ excalidrawAPI, activeTool }: CustomToolbarProps)
   }
 
   return (
-    <div
-      style={{
-        position: 'absolute',
-        bottom: 12,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        display: 'flex',
-        gap: 2,
-        background: 'white',
-        border: '1px solid #e2e8f0',
-        borderRadius: 10,
-        padding: 4,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-        zIndex: 100,
-      }}
-    >
+    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-0.5 bg-white border border-border rounded-[10px] p-1 shadow-[0_2px_8px_rgba(0,0,0,0.08)] z-[100]">
       {tools.map((tool) => {
         const isActive = tool.excalidrawTool ? activeTool === tool.excalidrawTool : false
         return (
@@ -101,28 +89,38 @@ export function CustomToolbar({ excalidrawAPI, activeTool }: CustomToolbarProps)
             key={tool.id}
             onClick={() => handleToolClick(tool)}
             title={`${tool.label} (${tool.kbd})`}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 2,
-              padding: '6px 10px',
-              fontSize: 10,
-              fontWeight: isActive ? 600 : 400,
-              color: isActive ? '#2563eb' : '#64748b',
-              background: isActive ? '#eff6ff' : 'transparent',
-              border: 'none',
-              borderRadius: 6,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              minWidth: 44,
-            }}
+            className={`flex flex-col items-center gap-0.5 px-2.5 py-1.5 text-[10px] rounded-md min-w-[44px] border-none cursor-pointer whitespace-nowrap ${
+              isActive
+                ? 'font-semibold text-primary bg-primary/10'
+                : 'font-normal text-muted-foreground bg-transparent hover:bg-secondary'
+            }`}
           >
             {tool.icon}
             {tool.label}
           </button>
         )
       })}
+
+      {/* Screenshot camera button */}
+      <div className="border-l border-border ml-0.5 pl-0.5">
+        <button
+          onClick={onScreenshotClick}
+          title={devUrl ? 'Capture Screenshot' : 'Set Dev URL in Settings to enable'}
+          className={`flex flex-col items-center gap-0.5 px-2.5 py-1.5 text-[10px] rounded-md min-w-[44px] border-none cursor-pointer whitespace-nowrap ${
+            screenshotOpen
+              ? 'font-semibold text-primary bg-primary/10'
+              : devUrl
+                ? 'font-normal text-muted-foreground bg-transparent hover:bg-secondary'
+                : 'font-normal text-gray-300 bg-transparent'
+          }`}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+            <circle cx="12" cy="13" r="3" />
+          </svg>
+          Capture
+        </button>
+      </div>
     </div>
   )
 }

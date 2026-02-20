@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../services/api'
+import { IconButton } from '../../components/ui/icon-button'
 import type { CanvasHistory } from '../../types'
 
 interface HistoryPanelProps {
@@ -20,81 +21,41 @@ export function HistoryPanel({ pageId, onClose }: HistoryPanelProps) {
   }, [pageId])
 
   return (
-    <div
-      style={{
-        position: 'absolute',
-        top: 0,
-        right: 0,
-        width: 280,
-        height: '100%',
-        background: 'white',
-        borderLeft: '1px solid #e2e8f0',
-        display: 'flex',
-        flexDirection: 'column',
-        zIndex: 200,
-      }}
-    >
-      <div
-        style={{
-          padding: '12px 16px',
-          borderBottom: '1px solid #e2e8f0',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>History</span>
-        <button
-          onClick={onClose}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            color: '#94a3b8',
-            fontSize: 16,
-          }}
-        >
-          x
-        </button>
+    <div className="absolute top-0 right-0 w-[280px] h-full bg-white border-l border-border flex flex-col z-[200]">
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+        <span className="text-[13px] font-semibold text-foreground">History</span>
+        <IconButton variant="ghost" size="sm" onClick={onClose} title="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6 6 18" />
+            <path d="m6 6 12 12" />
+          </svg>
+        </IconButton>
       </div>
 
-      <div style={{ flex: 1, overflow: 'auto', padding: 12 }}>
+      <div className="flex-1 overflow-auto p-3">
         {loading ? (
-          <div style={{ color: '#94a3b8', fontSize: 12, textAlign: 'center', padding: 20 }}>
+          <div className="text-muted-foreground text-xs text-center py-5">
             Loading...
           </div>
         ) : entries.length === 0 ? (
-          <div style={{ color: '#94a3b8', fontSize: 12, textAlign: 'center', padding: 20 }}>
+          <div className="text-muted-foreground text-xs text-center py-5">
             No history yet. Changes are saved automatically.
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {entries.map((entry) => (
               <div
                 key={entry.id}
-                style={{
-                  padding: '8px 12px',
-                  background: '#f8fafc',
-                  borderRadius: 6,
-                  border: '1px solid #e2e8f0',
-                  cursor: 'pointer',
-                }}
+                className="px-3 py-2 bg-secondary rounded-md border border-border cursor-pointer hover:border-primary/30"
               >
-                <div style={{ fontSize: 12, color: '#1e293b', fontWeight: 500 }}>
+                <div className="text-xs text-foreground font-medium">
                   {entry.description || 'Canvas snapshot'}
                 </div>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                <div className="text-[11px] text-muted-foreground mt-0.5">
                   {new Date(entry.created_at).toLocaleString()}
                 </div>
                 {entry.build_id && (
-                  <div
-                    style={{
-                      marginTop: 4,
-                      fontSize: 10,
-                      color: '#22c55e',
-                      fontWeight: 500,
-                    }}
-                  >
+                  <div className="mt-1 text-[10px] text-green-500 font-medium">
                     Build snapshot
                   </div>
                 )}

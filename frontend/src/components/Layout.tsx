@@ -9,6 +9,7 @@ import { ChatPanel } from '../features/ai/ChatPanel'
 import { useProjectStore } from '../stores/projectStore'
 import { useUIStore } from '../stores/uiStore'
 import { HistoryPanel } from '../features/history/HistoryPanel'
+import { ScreenshotPopover } from '../features/screenshot/ScreenshotPopover'
 import { api } from '../services/api'
 import type { ProjectSettings } from '../types'
 
@@ -29,7 +30,7 @@ interface ScreenshotFlowState {
 export function Layout() {
   const currentPage = useProjectStore((s) => s.currentPage)
   const currentProject = useProjectStore((s) => s.currentProject)
-  const { chatOpen, setChatOpen, historyOpen, toggleHistory } = useUIStore()
+  const { chatOpen, setChatOpen, historyOpen, toggleHistory, screenshotOpen, toggleScreenshot, setScreenshotOpen, setShowSettings } = useUIStore()
   const [selectedShapes, setSelectedShapes] = useState<Array<{ id: string; type: string; label: string; description?: string; imageUrl?: string }>>([])
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null)
   const screenshotFlowRef = useRef<ScreenshotFlowState | null>(null)
@@ -206,22 +207,29 @@ export function Layout() {
     []
   )
 
+  const handleScreenshotClick = useCallback(() => {
+    if (devUrl) {
+      toggleScreenshot()
+    } else {
+      setShowSettings(true)
+    }
+  }, [devUrl, toggleScreenshot, setShowSettings])
+
+  const handleToolbarScreenshotCapture = useCallback(
+    async (url: string, width: number, height: number) => {
+      const result = await api.captureScreenshot({ url, width, height })
+      screenshotFlowRef.current = null
+      handleCreateScreenshot(result.dataUrl, url)
+    },
+    [handleCreateScreenshot]
+  )
+
   return (
     <div className="flex flex-col h-screen">
       <Toolbar excalidrawAPI={apiRef.current} />
+
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar
-          onFetchScreenshot={async (pageName) => {
-            if (!devUrl) return
-            try {
-              const result = await api.captureScreenshot({ url: devUrl })
-              screenshotFlowRef.current = null
-              handleCreateScreenshot(result.dataUrl, pageName)
-            } catch (err) {
-              console.error('Screenshot capture failed:', err)
-            }
-          }}
-        />
+        <Sidebar />
         <main className="flex-1 relative">
           {currentPage ? (
             <Canvas
@@ -231,11 +239,23 @@ export function Layout() {
               onChatOpen={() => setChatOpen(true)}
               onEditorMount={handleEditorMount}
               canvasColor={canvasColor}
+              devUrl={devUrl}
+              screenshotOpen={screenshotOpen}
+              onScreenshotClick={handleScreenshotClick}
             />
           ) : (
             <div className="flex items-center justify-center h-full text-gray-400 text-sm">
               Create or select a page to start
             </div>
+          )}
+
+          {/* Screenshot Popover — anchored above in-canvas toolbar */}
+          {screenshotOpen && (
+            <ScreenshotPopover
+              devUrl={devUrl ?? ''}
+              onCapture={handleToolbarScreenshotCapture}
+              onClose={() => setScreenshotOpen(false)}
+            />
           )}
 
           {/* History Panel */}

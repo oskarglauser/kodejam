@@ -1,6 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useProjectStore } from '../../stores/projectStore'
 import { DirectoryPicker } from '../../components/DirectoryPicker'
+import { ModalOverlay, ModalContent, ModalHeader, ModalTitle, ModalClose, ModalBody, ModalFooter } from '../../components/ui/modal'
+import { Button } from '../../components/ui/button'
+import { Input } from '../../components/ui/input'
+import { Label } from '../../components/ui/label'
 import type { ExcalidrawImperativeAPI } from '../../canvas/Canvas'
 import type { ProjectSettings } from '../../types'
 
@@ -52,22 +56,12 @@ export function ProjectSettingsModal({ onClose, excalidrawAPI }: Props) {
     }
   }, [currentProject])
 
-  // Live preview: update canvas background as user picks colors
+  // Live preview: update CSS variable so dot-grid background changes in real time
   useEffect(() => {
-    if (excalidrawAPI && canvasColor) {
-      excalidrawAPI.updateScene({ appState: { viewBackgroundColor: canvasColor } })
+    if (canvasColor) {
+      document.documentElement.style.setProperty('--kodejam-canvas-bg', canvasColor)
     }
-  }, [canvasColor, excalidrawAPI])
-
-  // Close on Escape key
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') handleCancel()
-  }, [])
-
-  useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleKeyDown])
+  }, [canvasColor])
 
   if (!currentProject) return null
 
@@ -90,9 +84,9 @@ export function ProjectSettingsModal({ onClose, excalidrawAPI }: Props) {
   }
 
   const handleCancel = () => {
-    // Revert canvas color preview
-    if (excalidrawAPI && originalColorRef.current) {
-      excalidrawAPI.updateScene({ appState: { viewBackgroundColor: originalColorRef.current } })
+    // Revert CSS variable to original color
+    if (originalColorRef.current) {
+      document.documentElement.style.setProperty('--kodejam-canvas-bg', originalColorRef.current)
     }
     onClose()
   }
@@ -120,48 +114,43 @@ export function ProjectSettingsModal({ onClose, excalidrawAPI }: Props) {
   }
 
   return (
-    <div style={styles.overlay} onClick={handleCancel}>
-      <div style={styles.modal} role="dialog" aria-modal="true" aria-label="Project Settings" onClick={(e) => e.stopPropagation()}>
-        <div style={styles.header}>
-          <h2 style={styles.title}>Project Settings</h2>
-          <button onClick={handleCancel} style={styles.closeBtn} aria-label="Close">&times;</button>
-        </div>
+    <ModalOverlay onClose={handleCancel}>
+      <ModalContent>
+        <ModalHeader>
+          <ModalTitle>Project Settings</ModalTitle>
+          <ModalClose onClick={handleCancel} />
+        </ModalHeader>
 
-        <div style={styles.body}>
-          <div style={styles.field}>
-            <label style={styles.label}>Project Name</label>
-            <input
-              type="text"
+        <ModalBody className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <Label>Project Name</Label>
+            <Input
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
-              style={styles.input}
             />
           </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Local Project Path</label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input
-                type="text"
+          <div className="flex flex-col gap-1">
+            <Label>Local Project Path</Label>
+            <div className="flex gap-2">
+              <Input
                 value={repoPath}
                 onChange={(e) => handleRepoPathChange(e.target.value)}
                 placeholder="/Users/you/projects/myapp"
-                style={{
-                  ...styles.input,
-                  flex: 1,
-                  ...(repoPathError ? { borderColor: '#ef4444' } : {}),
-                }}
+                className={repoPathError ? 'border-destructive' : ''}
               />
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setShowDirPicker(true)}
-                style={styles.browseBtn}
+                className="shrink-0"
               >
                 Browse
-              </button>
+              </Button>
             </div>
             {repoPathError && (
-              <p style={{ fontSize: 11, color: '#ef4444', margin: 0 }}>{repoPathError}</p>
+              <p className="text-[11px] text-destructive m-0">{repoPathError}</p>
             )}
           </div>
           {showDirPicker && (
@@ -175,39 +164,34 @@ export function ProjectSettingsModal({ onClose, excalidrawAPI }: Props) {
             />
           )}
 
-          <div style={styles.field}>
-            <label style={styles.label}>
+          <div className="flex flex-col gap-1">
+            <Label>
               Dev Server URL
-              <span style={{ fontWeight: 400, color: '#9ca3af', marginLeft: 4 }}>(optional)</span>
-            </label>
-            <input
-              type="text"
+              <span className="font-normal text-muted-foreground ml-1">(optional)</span>
+            </Label>
+            <Input
               value={devUrl}
               onChange={(e) => setDevUrl(e.target.value)}
               placeholder="http://localhost:3000"
-              style={styles.input}
             />
-            <p style={styles.hint}>
+            <p className="text-[11px] text-muted-foreground m-0 leading-snug">
               Enables screenshot capture from chat. Leave empty if not needed.
             </p>
           </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Canvas Background</label>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
+          <div className="flex flex-col gap-1">
+            <Label>Canvas Background</Label>
+            <div className="flex gap-1.5 flex-wrap">
               {CANVAS_COLOR_PRESETS.map((preset) => (
                 <button
                   key={preset.value}
                   onClick={() => setCanvasColor(preset.value)}
                   title={preset.label}
+                  className="w-7 h-7 rounded-md border cursor-pointer p-0"
                   style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 6,
-                    border: canvasColor === preset.value ? '2px solid #2563eb' : '1px solid #d1d5db',
                     background: preset.value,
-                    cursor: 'pointer',
-                    padding: 0,
+                    borderColor: canvasColor === preset.value ? 'hsl(var(--primary))' : 'hsl(var(--border))',
+                    borderWidth: canvasColor === preset.value ? 2 : 1,
                   }}
                 />
               ))}
@@ -216,138 +200,23 @@ export function ProjectSettingsModal({ onClose, excalidrawAPI }: Props) {
                 value={canvasColor}
                 onChange={(e) => setCanvasColor(e.target.value)}
                 title="Custom color"
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 6,
-                  border: '1px solid #d1d5db',
-                  cursor: 'pointer',
-                  padding: 0,
-                }}
+                className="w-7 h-7 rounded-md border border-border cursor-pointer p-0"
               />
             </div>
           </div>
-        </div>
+        </ModalBody>
 
         {saveError && (
-          <div style={{ padding: '0 20px 8px', color: '#ef4444', fontSize: 12 }}>{saveError}</div>
+          <div className="px-5 pb-2 text-destructive text-xs">{saveError}</div>
         )}
-        <div style={styles.footer}>
-          <button onClick={handleCancel} style={styles.cancelBtn}>Cancel</button>
-          <button onClick={handleSave} disabled={saving || !!repoPathError} style={styles.saveBtn}>
-            {saving ? 'Saving...' : 'Save'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
 
-const styles: Record<string, React.CSSProperties> = {
-  overlay: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(0,0,0,0.3)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2000,
-  },
-  modal: {
-    background: '#fff',
-    borderRadius: 12,
-    width: 440,
-    maxWidth: '90vw',
-    boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
-    overflow: 'hidden',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '16px 20px',
-    borderBottom: '1px solid #e5e7eb',
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: 600,
-    color: '#111827',
-    margin: 0,
-  },
-  closeBtn: {
-    background: 'none',
-    border: 'none',
-    fontSize: 20,
-    color: '#6b7280',
-    cursor: 'pointer',
-    padding: '0 4px',
-    lineHeight: 1,
-  },
-  body: {
-    padding: '20px',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 16,
-  },
-  field: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 4,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: 600,
-    color: '#374151',
-  },
-  input: {
-    width: '100%',
-    padding: '8px 10px',
-    fontSize: 13,
-    border: '1px solid #d1d5db',
-    borderRadius: 6,
-    outline: 'none',
-    boxSizing: 'border-box' as const,
-  },
-  hint: {
-    fontSize: 11,
-    color: '#9ca3af',
-    margin: 0,
-    lineHeight: 1.4,
-  },
-  footer: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: 8,
-    padding: '12px 20px',
-    borderTop: '1px solid #e5e7eb',
-  },
-  cancelBtn: {
-    padding: '6px 14px',
-    fontSize: 12,
-    color: '#374151',
-    background: '#fff',
-    border: '1px solid #d1d5db',
-    borderRadius: 6,
-    cursor: 'pointer',
-  },
-  browseBtn: {
-    padding: '8px 12px',
-    fontSize: 12,
-    color: '#374151',
-    background: '#fff',
-    border: '1px solid #d1d5db',
-    borderRadius: 6,
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-  },
-  saveBtn: {
-    padding: '6px 14px',
-    fontSize: 12,
-    fontWeight: 600,
-    color: '#fff',
-    background: '#2563eb',
-    border: 'none',
-    borderRadius: 6,
-    cursor: 'pointer',
-  },
+        <ModalFooter>
+          <Button variant="outline" size="sm" onClick={handleCancel}>Cancel</Button>
+          <Button size="sm" onClick={handleSave} disabled={saving || !!repoPathError}>
+            {saving ? 'Saving...' : 'Save'}
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </ModalOverlay>
+  )
 }
