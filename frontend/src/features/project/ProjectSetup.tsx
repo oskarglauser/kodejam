@@ -210,7 +210,7 @@ export function ProjectSetup() {
 
       <div className="mt-auto py-6">
         <a
-          href="https://github.com/AtotheY/kodejam"
+          href="https://github.com/oskarglauser/kodejam"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors"

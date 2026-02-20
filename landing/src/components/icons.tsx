@@ -69,3 +69,55 @@ export function Zap({ className }: IconProps) {
     </svg>
   )
 }
+
+export function Camera({ className }: IconProps) {
+  return (
+    <svg
+      className={cn('h-4 w-4', className)}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+      <circle cx="12" cy="13" r="3" />
+    </svg>
+  )
+}
+
+export function Layers({ className }: IconProps) {
+  return (
+    <svg
+      className={cn('h-4 w-4', className)}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" />
+      <path d="m2 12 8.58 3.91a2 2 0 0 0 1.66 0L20.76 12" />
+      <path d="m2 17 8.58 3.91a2 2 0 0 0 1.66 0L20.76 17" />
+    </svg>
+  )
+}
+
+export function History({ className }: IconProps) {
+  return (
+    <svg
+      className={cn('h-4 w-4', className)}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  )
+}

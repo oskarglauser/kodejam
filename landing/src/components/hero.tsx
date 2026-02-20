@@ -16,8 +16,8 @@ export function Hero() {
       </h1>
 
       <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-slate-400">
-        Draw wireframes on a canvas, chat with Claude Code about your
-        codebase, and watch your ideas turn into working code.
+        Draw wireframes on an infinite canvas, chat with Claude about your
+        codebase, capture live screenshots, and ship working code — all in one tool.
       </p>
 
       <a
