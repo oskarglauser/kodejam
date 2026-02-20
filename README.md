@@ -2,6 +2,8 @@
 
 A visual frontend for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Sketch wireframes on an infinite canvas, chat with AI about your codebase, and ship working code — all from a single tool.
 
+**[oskarglauser.github.io/kodejam](https://oskarglauser.github.io/kodejam/)**
+
 ## How It Works
 
 1. **Create a project** pointing at a local codebase
@@ -45,13 +47,13 @@ npm install
 npm run dev
 ```
 
-This starts both the frontend (http://localhost:5173) and backend (http://localhost:3001).
+This starts both the frontend and backend concurrently. Open the URL printed by Vite in your browser.
 
 You can also run them separately:
 
 ```bash
-npm run dev:frontend   # Vite dev server on port 5173
-npm run dev:backend    # Express server on port 3001
+npm run dev:frontend   # Vite dev server
+npm run dev:backend    # Express API server
 ```
 
 ### Configuration

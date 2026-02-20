@@ -4,6 +4,13 @@ import { ArrowRight } from './icons'
 export function Hero() {
   return (
     <section className="relative mx-auto max-w-4xl px-8 pb-16 pt-20 text-center">
+      <div className="mx-auto mb-6 w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="16 18 22 12 16 6" />
+          <polyline points="8 6 2 12 8 18" />
+        </svg>
+      </div>
+
       <Badge className="mb-10">
         A visual frontend for Claude Code
         <ArrowRight className="h-3.5 w-3.5" />
