@@ -3,6 +3,7 @@ import { useUIStore } from '../stores/uiStore'
 import { useProjectStore } from '../stores/projectStore'
 import { useNavigate } from 'react-router-dom'
 import { ProjectSettingsModal } from '../features/project/ProjectSettingsModal'
+import { IconButton } from './ui/icon-button'
 import type { ExcalidrawImperativeAPI } from '../canvas/Canvas'
 
 interface ToolbarProps {
@@ -44,13 +45,19 @@ export function Toolbar({ excalidrawAPI }: ToolbarProps) {
 
   return (
     <>
-      <header className="h-12 bg-white border-b border-gray-200 flex items-center px-4 shrink-0">
-        <button
+      <header className="h-12 bg-white border-b border-border flex items-center px-4 shrink-0 shadow-sm">
+        <IconButton
+          variant="ghost"
+          size="sm"
           onClick={() => navigate('/')}
-          className="text-sm text-gray-400 hover:text-gray-600 mr-3"
+          className="mr-3"
+          title="Back to projects"
         >
-          &larr;
-        </button>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m12 19-7-7 7-7" />
+            <path d="M19 12H5" />
+          </svg>
+        </IconButton>
 
         {isRenaming ? (
           <input
@@ -63,11 +70,11 @@ export function Toolbar({ excalidrawAPI }: ToolbarProps) {
               if (e.key === 'Escape') setIsRenaming(false)
             }}
             onBlur={handleRename}
-            className="text-sm font-semibold text-gray-800 mr-4 px-1 py-0.5 border border-blue-400 rounded focus:outline-none bg-white"
+            className="text-[13px] font-semibold text-foreground mr-4 px-1 py-0.5 border border-primary rounded-md focus:outline-none bg-white"
           />
         ) : (
           <h1
-            className="text-sm font-semibold text-gray-800 mr-4 cursor-pointer hover:text-blue-600"
+            className="text-[13px] font-semibold text-foreground mr-4 cursor-pointer hover:text-primary transition-colors"
             onDoubleClick={startRename}
             title="Double-click to rename"
           >
@@ -79,64 +86,78 @@ export function Toolbar({ excalidrawAPI }: ToolbarProps) {
 
         {/* Zoom controls */}
         {excalidrawAPI && (
-          <div className="flex items-center gap-0.5 mr-3">
-            <button
+          <div className="flex items-center bg-secondary rounded-lg p-0.5 mr-3">
+            <IconButton
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 const s = excalidrawAPI.getAppState()
                 const next = Math.max(0.1, s.zoom.value - 0.1)
                 excalidrawAPI.updateScene({ appState: { zoom: { value: next as any } } })
               }}
-              className="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded text-sm"
               title="Zoom out"
             >
-              &minus;
-            </button>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14" />
+              </svg>
+            </IconButton>
             <button
               onClick={() => {
                 excalidrawAPI.updateScene({ appState: { zoom: { value: 1 as any } } })
               }}
-              className="px-1.5 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded min-w-[3rem] text-center"
+              className="px-1.5 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground rounded min-w-[3rem] text-center transition-colors"
               title="Reset zoom"
             >
               {zoomLevel}%
             </button>
-            <button
+            <IconButton
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 const s = excalidrawAPI.getAppState()
                 const next = Math.min(10, s.zoom.value + 0.1)
                 excalidrawAPI.updateScene({ appState: { zoom: { value: next as any } } })
               }}
-              className="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded text-sm"
               title="Zoom in"
             >
-              +
-            </button>
-            <button
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14" />
+                <path d="M12 5v14" />
+              </svg>
+            </IconButton>
+            <div className="w-px h-4 bg-border mx-0.5" />
+            <IconButton
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 excalidrawAPI.scrollToContent(excalidrawAPI.getSceneElements() as any, { fitToContent: true })
               }}
-              className="ml-1 px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded"
               title="Zoom to fit"
             >
-              Fit
-            </button>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 3h6v6" />
+                <path d="M9 21H3v-6" />
+                <path d="M21 3l-7 7" />
+                <path d="M3 21l7-7" />
+              </svg>
+            </IconButton>
           </div>
         )}
 
         {/* View toggle */}
-        <div className="flex items-center gap-1 bg-gray-100 rounded-md p-0.5 mr-3">
+        <div className="flex items-center bg-secondary rounded-lg p-0.5 mr-3">
           <button
             onClick={() => setViewMode('sketch')}
-            className={`px-2.5 py-1 text-xs rounded ${
-              viewMode === 'sketch' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500'
+            className={`px-3 py-1.5 text-[12px] font-medium rounded-md transition-all duration-150 ${
+              viewMode === 'sketch' ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             Sketch
           </button>
           <button
             onClick={() => setViewMode('built')}
-            className={`px-2.5 py-1 text-xs rounded ${
-              viewMode === 'built' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500'
+            className={`px-3 py-1.5 text-[12px] font-medium rounded-md transition-all duration-150 ${
+              viewMode === 'built' ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             Built
@@ -145,39 +166,39 @@ export function Toolbar({ excalidrawAPI }: ToolbarProps) {
 
         {/* Right-side icon buttons: History, Settings, Chat */}
         <div className="flex items-center gap-1">
-          <button
+          <IconButton
+            variant={historyOpen ? 'active' : 'ghost'}
             onClick={toggleHistory}
-            className={`w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 ${historyOpen ? 'text-blue-600 bg-blue-50' : 'text-gray-500'}`}
             title="History"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
             </svg>
-          </button>
+          </IconButton>
 
           {currentProject && (
-            <button
+            <IconButton
+              variant="ghost"
               onClick={() => setShowSettings(true)}
-              className="w-8 h-8 flex items-center justify-center text-gray-500 rounded hover:bg-gray-100"
               title="Settings"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
                 <circle cx="12" cy="12" r="3" />
               </svg>
-            </button>
+            </IconButton>
           )}
 
-          <button
+          <IconButton
+            variant={chatOpen ? 'active' : 'ghost'}
             onClick={toggleChat}
-            className={`w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 ${chatOpen ? 'text-blue-600 bg-blue-50' : 'text-gray-500'}`}
             title={chatOpen ? 'Hide Chat' : 'Show Chat'}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
-          </button>
+          </IconButton>
         </div>
       </header>
 

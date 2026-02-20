@@ -187,13 +187,19 @@ export function ProjectSettingsModal({ onClose, excalidrawAPI }: Props) {
                   key={preset.value}
                   onClick={() => setCanvasColor(preset.value)}
                   title={preset.label}
-                  className="w-7 h-7 rounded-md border cursor-pointer p-0"
+                  className="w-8 h-8 rounded-md border cursor-pointer p-0 flex items-center justify-center transition-all"
                   style={{
                     background: preset.value,
                     borderColor: canvasColor === preset.value ? 'hsl(var(--primary))' : 'hsl(var(--border))',
                     borderWidth: canvasColor === preset.value ? 2 : 1,
                   }}
-                />
+                >
+                  {canvasColor === preset.value && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={preset.value === '#ffffff' || preset.value === '#f0f0f0' || preset.value === '#e5e5e5' ? 'hsl(var(--primary))' : '#fff'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  )}
+                </button>
               ))}
               <input
                 type="color"

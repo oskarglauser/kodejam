@@ -261,7 +261,7 @@ export function ChatPanel({
 
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0 gap-2">
-        <span className="text-sm font-semibold text-foreground">Claude</span>
+        <span className="text-sm font-semibold text-foreground tracking-tight">Claude</span>
         {devUrl && (
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-50 text-green-600 font-medium flex-1 text-right truncate" title={devUrl}>
             {new URL(devUrl).host}
@@ -299,7 +299,12 @@ export function ChatPanel({
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
         {messages.length === 0 && (
-          <div className="text-center text-muted-foreground text-[13px] py-10 px-5 leading-relaxed">
+          <div className="flex flex-col items-center text-center text-muted-foreground text-[13px] py-10 px-5 leading-relaxed">
+            <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center mb-3">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+              </svg>
+            </div>
             {devUrl
               ? 'Ask the AI about your design, request screenshots of your app, or get help building components.'
               : 'Ask the AI about your design, request code changes, or get help building components.'}
@@ -312,7 +317,7 @@ export function ChatPanel({
             className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[85%] px-3 py-2 rounded-xl text-[13px] leading-relaxed break-words ${
+              className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed break-words ${
                 msg.role === 'user'
                   ? 'bg-primary text-primary-foreground rounded-br-sm'
                   : 'bg-secondary text-secondary-foreground rounded-bl-sm'
@@ -400,7 +405,7 @@ export function ChatPanel({
           placeholder={devUrl ? 'Ask the AI... (try "show me the homepage")' : 'Ask the AI...'}
           rows={2}
           disabled={isStreaming || isBuilding}
-          className="font-[inherit]"
+          className="font-[inherit] bg-secondary/50 border-border/60"
         />
         <div className="flex justify-end mt-2">
           {isStreaming ? (

@@ -34,7 +34,7 @@ const ModalOverlay = React.forwardRef<HTMLDivElement, ModalOverlayProps>(
       <div
         ref={ref}
         className={cn(
-          'fixed inset-0 z-[2000] flex items-center justify-center bg-black/40',
+          'fixed inset-0 z-[2000] flex items-center justify-center bg-black/50',
           className,
         )}
         onClick={onClose}
@@ -63,7 +63,7 @@ const ModalContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLD
           aria-modal="true"
           aria-labelledby={titleId}
           className={cn(
-            'bg-background rounded-xl shadow-lg w-[440px] max-w-[90vw] max-h-[80vh] flex flex-col overflow-hidden',
+            'bg-background rounded-2xl shadow-2xl border border-border/40 w-[440px] max-w-[90vw] max-h-[80vh] flex flex-col overflow-hidden',
             className,
           )}
           onClick={(e) => {
@@ -128,13 +128,16 @@ const ModalClose = React.forwardRef<HTMLButtonElement, ModalCloseProps>(
     <button
       ref={ref}
       className={cn(
-        'bg-transparent border-none text-muted-foreground text-xl leading-none px-1 cursor-pointer hover:text-foreground',
+        'bg-transparent border-none text-muted-foreground rounded-md hover:bg-accent p-1 cursor-pointer hover:text-foreground transition-colors',
         className,
       )}
       aria-label="Close"
       {...props}
     >
-      &times;
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 6 6 18" />
+        <path d="m6 6 12 12" />
+      </svg>
     </button>
   ),
 )

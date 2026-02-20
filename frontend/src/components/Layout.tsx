@@ -244,7 +244,15 @@ export function Layout() {
               onScreenshotClick={handleScreenshotClick}
             />
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-[13px]">
+              <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center mb-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+                  <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+                  <path d="M9 15h6" />
+                  <path d="M12 12v6" />
+                </svg>
+              </div>
               Create or select a page to start
             </div>
           )}

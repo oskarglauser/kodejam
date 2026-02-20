@@ -21,7 +21,7 @@ export function HistoryPanel({ pageId, onClose }: HistoryPanelProps) {
   }, [pageId])
 
   return (
-    <div className="absolute top-0 right-0 w-[280px] h-full bg-white border-l border-border flex flex-col z-[200]">
+    <div className="absolute top-0 right-0 w-[300px] h-full bg-white border-l border-border flex flex-col z-[200] shadow-lg">
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
         <span className="text-[13px] font-semibold text-foreground">History</span>
         <IconButton variant="ghost" size="sm" onClick={onClose} title="Close">
@@ -46,7 +46,7 @@ export function HistoryPanel({ pageId, onClose }: HistoryPanelProps) {
             {entries.map((entry) => (
               <div
                 key={entry.id}
-                className="px-3 py-2 bg-secondary rounded-md border border-border cursor-pointer hover:border-primary/30"
+                className="px-3 py-2 bg-secondary rounded-lg border border-border/50 cursor-pointer hover:bg-accent/50 transition-colors"
               >
                 <div className="text-xs text-foreground font-medium">
                   {entry.description || 'Canvas snapshot'}
@@ -55,7 +55,8 @@ export function HistoryPanel({ pageId, onClose }: HistoryPanelProps) {
                   {new Date(entry.created_at).toLocaleString()}
                 </div>
                 {entry.build_id && (
-                  <div className="mt-1 text-[10px] text-green-500 font-medium">
+                  <div className="mt-1 inline-flex items-center gap-1 bg-success/[0.08] text-success rounded-full px-1.5 py-0.5 text-[10px] font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-success" />
                     Build snapshot
                   </div>
                 )}

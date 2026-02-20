@@ -83,7 +83,7 @@ export function ScreenshotPopover({ devUrl, onCapture, onClose }: ScreenshotPopo
   return (
     <div
       ref={popoverRef}
-      className="absolute bottom-20 left-1/2 -translate-x-1/2 z-[1000] bg-white border border-border rounded-lg shadow-lg p-4 w-80"
+      className="absolute bottom-20 left-1/2 -translate-x-1/2 z-[1000] bg-white border border-border/60 rounded-xl shadow-xl p-5 w-80"
     >
       {/* URL input */}
       <label className="text-xs font-semibold text-foreground mb-1.5 block">URL</label>

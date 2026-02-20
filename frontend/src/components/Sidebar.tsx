@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useProjectStore } from '../stores/projectStore'
 import { api } from '../services/api'
 import { IconButton } from './ui/icon-button'
+import { Input } from './ui/input'
 
 export function Sidebar() {
   const { pages, currentPage, currentProject, setCurrentPage, createPage, deletePage, updatePage } = useProjectStore()
@@ -68,14 +69,15 @@ export function Sidebar() {
   }, [menuPageId])
 
   return (
-    <aside className="w-56 bg-white border-r border-gray-200 flex flex-col h-full">
-      <div className="p-3 border-b border-gray-200 flex items-center justify-between">
-        <span className="text-sm font-semibold text-gray-700">Pages</span>
+    <aside className="w-56 bg-white border-r border-border flex flex-col h-full">
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pages</span>
         <div className="flex items-center gap-1">
-          <button
+          <IconButton
+            variant="ghost"
+            size="sm"
             onClick={handleScanViews}
             disabled={scanning || !currentProject}
-            className="text-gray-400 hover:text-blue-600 text-xs px-1.5 py-0.5 rounded hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
             title="Scan codebase for views and flows"
           >
             {scanning ? (
@@ -89,28 +91,31 @@ export function Sidebar() {
                 <path d="m21 21-4.35-4.35" />
               </svg>
             )}
-          </button>
-          <button
+          </IconButton>
+          <IconButton
+            variant="ghost"
+            size="sm"
             onClick={() => setAdding(!adding)}
-            className="text-gray-400 hover:text-gray-600 text-lg leading-none"
             title="Add page"
           >
-            +
-          </button>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14" />
+              <path d="M12 5v14" />
+            </svg>
+          </IconButton>
         </div>
       </div>
 
       {scanning && (
-        <div className="px-3 py-2 border-b border-gray-100 bg-blue-50">
-          <p className="text-xs text-blue-600">Scanning codebase for views...</p>
+        <div className="px-3 py-2 border-b border-border/50 bg-primary/5">
+          <p className="text-xs text-primary">Scanning codebase for views...</p>
         </div>
       )}
 
       {adding && (
-        <div className="p-2 border-b border-gray-100">
-          <input
+        <div className="p-2 border-b border-border/50">
+          <Input
             autoFocus
-            type="text"
             placeholder="Page name..."
             value={newPageName}
             onChange={(e) => setNewPageName(e.target.value)}
@@ -118,23 +123,28 @@ export function Sidebar() {
               if (e.key === 'Enter') handleAddPage()
               if (e.key === 'Escape') setAdding(false)
             }}
-            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-400"
+            className="h-8 text-[13px]"
           />
         </div>
       )}
 
-      <nav className="flex-1 overflow-y-auto">
+      <nav className="flex-1 overflow-y-auto py-1">
         {pages.map((page) => (
           <div
             key={page.id}
-            className={`group relative flex items-center px-3 py-2 text-sm cursor-pointer ${
+            className={`group relative flex items-center gap-2 px-3 py-2 mx-2 my-0.5 rounded-md text-[13px] cursor-pointer transition-colors ${
               currentPage?.id === page.id
-                ? 'bg-blue-50 text-blue-700 font-medium'
-                : 'text-gray-600 hover:bg-gray-50'
+                ? 'bg-primary/[0.08] text-primary font-medium'
+                : 'text-foreground/70 hover:bg-accent'
             }`}
             onClick={() => setCurrentPage(page)}
             onDoubleClick={() => startRename(page.id, page.name)}
           >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-50 shrink-0">
+              <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+              <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+            </svg>
+
             {renamingId === page.id ? (
               <input
                 autoFocus
@@ -147,7 +157,7 @@ export function Sidebar() {
                 }}
                 onBlur={handleRename}
                 onClick={(e) => e.stopPropagation()}
-                className="flex-1 px-1 py-0 text-sm border border-blue-400 rounded focus:outline-none bg-white"
+                className="flex-1 px-1 py-0 text-[13px] border border-primary rounded focus:outline-none bg-white"
               />
             ) : (
               <span className="flex-1 truncate">{page.name}</span>
@@ -178,14 +188,14 @@ export function Sidebar() {
             {menuPageId === page.id && (
               <div
                 ref={menuRef}
-                className="absolute right-2 top-8 z-50 bg-white border border-border rounded-md shadow-lg py-1 min-w-[120px]"
+                className="absolute right-2 top-8 z-50 bg-white border border-border/60 rounded-lg shadow-xl py-1 min-w-[140px]"
               >
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     startRename(page.id, page.name)
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-secondary"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-secondary"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
@@ -198,7 +208,7 @@ export function Sidebar() {
                     setMenuPageId(null)
                     if (confirm(`Delete "${page.name}"?`)) deletePage(page.id)
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-destructive hover:bg-destructive/10"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M3 6h18" />
@@ -212,7 +222,7 @@ export function Sidebar() {
           </div>
         ))}
         {pages.length === 0 && (
-          <p className="p-3 text-xs text-gray-400">No pages yet. Click + to create one.</p>
+          <p className="px-4 py-8 text-xs text-muted-foreground text-center">No pages yet. Click + to create one.</p>
         )}
       </nav>
     </aside>

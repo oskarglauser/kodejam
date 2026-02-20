@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProjectStore } from '../../stores/projectStore'
 import { DirectoryPicker } from '../../components/DirectoryPicker'
+import { Input } from '../../components/ui/input'
+import { Label } from '../../components/ui/label'
+import { Button } from '../../components/ui/button'
 
 export function ProjectSetup() {
   const { projects, loadProjects, createProject, deleteProject, loading } = useProjectStore()
@@ -55,34 +58,52 @@ export function ProjectSetup() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center pt-20 px-4">
-      <div className="max-w-lg w-full">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1 text-center">Kodejam</h1>
-        <p className="text-sm text-gray-500 mb-8 text-center">Visual canvas for AI-powered code generation</p>
+    <div className="min-h-screen bg-[hsl(220,14%,97%)] flex flex-col items-center pt-16 px-6">
+      <div className="max-w-xl w-full">
+        {/* Branding */}
+        <div className="flex flex-col items-center mb-10">
+          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center mb-3">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="16 18 22 12 16 6" />
+              <polyline points="8 6 2 12 8 18" />
+            </svg>
+          </div>
+          <h1 className="text-[22px] font-semibold text-foreground tracking-tight">Kodejam</h1>
+          <p className="text-[13px] text-muted-foreground mt-1">Visual canvas for AI-powered code generation</p>
+        </div>
 
         {/* Project list */}
         {projects.length > 0 && (
           <div className="mb-8">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">Projects</h2>
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Projects</h2>
             <div className="space-y-2">
               {projects.map((p) => (
                 <div
                   key={p.id}
-                  className="group flex items-center justify-between bg-white rounded-lg border border-gray-200 px-4 py-3 cursor-pointer hover:border-blue-300 transition-colors"
+                  className="group flex items-center bg-white rounded-xl border border-border/60 px-4 py-3.5 cursor-pointer hover:shadow-md hover:border-primary/30 transition-all duration-150"
                   onClick={() => navigate(`/project/${p.id}`)}
                 >
-                  <div>
-                    <div className="text-sm font-medium text-gray-800">{p.name}</div>
-                    <div className="text-xs text-gray-400 mt-0.5">{p.repo_path}</div>
+                  <div className="w-8 h-8 rounded-lg bg-primary/[0.08] flex items-center justify-center shrink-0 mr-3">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-medium text-foreground">{p.name}</div>
+                    <div className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate">{p.repo_path}</div>
                   </div>
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
                       if (confirm(`Delete project "${p.name}"?`)) deleteProject(p.id)
                     }}
-                    className="hidden group-hover:block text-xs text-gray-400 hover:text-red-500"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
                   >
-                    Delete
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 6h18" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
                   </button>
                 </div>
               ))}
@@ -92,37 +113,37 @@ export function ProjectSetup() {
 
         {/* Create project */}
         {creating ? (
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">New Project</h2>
-            <input
+          <div className="bg-white rounded-xl border border-border/60 p-5 shadow-sm">
+            <h2 className="text-[14px] font-semibold text-foreground mb-3">New Project</h2>
+            <Input
               autoFocus
-              type="text"
               placeholder="Project name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={submitting}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md mb-3 focus:outline-none focus:border-blue-400 disabled:opacity-50"
+              className="mb-3"
             />
-            <label className="text-xs font-medium text-gray-500 mb-1">Local project path</label>
+            <Label className="mb-1 block">Local project path</Label>
             <div className="flex gap-2 mb-1">
-              <input
-                type="text"
+              <Input
                 placeholder="/Users/you/projects/myapp"
                 value={repoPath}
                 onChange={(e) => handleRepoPathChange(e.target.value)}
                 disabled={submitting}
-                className={`flex-1 px-3 py-2 text-sm border rounded-md focus:outline-none disabled:opacity-50 ${repoPathError ? 'border-red-400 focus:border-red-500' : 'border-gray-300 focus:border-blue-400'}`}
+                className={repoPathError ? 'border-destructive focus-visible:border-destructive' : ''}
               />
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setShowDirPicker(true)}
-                className="px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 text-gray-600 whitespace-nowrap"
+                className="shrink-0"
               >
                 Browse
-              </button>
+              </Button>
             </div>
             {repoPathError ? (
-              <p className="text-xs text-red-500 mb-3">{repoPathError}</p>
+              <p className="text-xs text-destructive mb-3">{repoPathError}</p>
             ) : (
               <div className="mb-2" />
             )}
@@ -136,36 +157,38 @@ export function ProjectSetup() {
                 onCancel={() => setShowDirPicker(false)}
               />
             )}
-            <input
-              type="text"
+            <Input
               placeholder="Dev server URL (e.g. http://localhost:3000)"
               value={devUrl}
               onChange={(e) => setDevUrl(e.target.value)}
               disabled={submitting}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md mb-4 focus:outline-none focus:border-blue-400 disabled:opacity-50"
+              className="mb-4"
             />
             <div className="flex gap-2">
-              <button
+              <Button
                 onClick={handleCreate}
                 disabled={!name.trim() || !repoPath.trim() || !!repoPathError || submitting}
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-40"
               >
                 {submitting ? 'Creating...' : 'Create'}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
                 onClick={() => setCreating(false)}
-                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-md"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
           <button
             onClick={() => setCreating(true)}
-            className="w-full py-3 text-sm text-gray-500 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:text-blue-500 transition-colors"
+            className="w-full py-3 border border-dashed border-border rounded-xl text-[13px] text-muted-foreground font-medium flex items-center justify-center gap-2 hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all duration-150"
           >
-            + New Project
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14" />
+              <path d="M12 5v14" />
+            </svg>
+            New Project
           </button>
         )}
       </div>
