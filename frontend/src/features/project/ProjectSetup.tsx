@@ -5,6 +5,7 @@ import { DirectoryPicker } from '../../components/DirectoryPicker'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
 import { Button } from '../../components/ui/button'
+import { ConfirmDialog } from '../../components/ui/confirm-dialog'
 
 export function ProjectSetup() {
   const { projects, loadProjects, createProject, deleteProject, loading } = useProjectStore()
@@ -15,6 +16,7 @@ export function ProjectSetup() {
   const [submitting, setSubmitting] = useState(false)
   const [repoPathError, setRepoPathError] = useState('')
   const [showDirPicker, setShowDirPicker] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -72,6 +74,19 @@ export function ProjectSetup() {
           <p className="text-[13px] text-muted-foreground mt-1">Visual canvas for AI-powered code generation</p>
         </div>
 
+        {/* How it works */}
+        {projects.length === 0 && (
+          <div className="mb-8 bg-white rounded-xl border border-border/60 px-5 py-4">
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">How it works</h2>
+            <ol className="text-[13px] text-foreground/80 space-y-1.5 list-decimal list-inside marker:text-muted-foreground/50 marker:font-medium">
+              <li>Create a project and point it at a local codebase</li>
+              <li>Sketch wireframes and annotate screenshots on the canvas</li>
+              <li>Chat with Claude to generate and refine code from your designs</li>
+              <li>Build directly into your repo and preview the result</li>
+            </ol>
+          </div>
+        )}
+
         {/* Project list */}
         {projects.length > 0 && (
           <div className="mb-8">
@@ -95,7 +110,7 @@ export function ProjectSetup() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      if (confirm(`Delete project "${p.name}"?`)) deleteProject(p.id)
+                      setDeleteTarget({ id: p.id, name: p.name })
                     }}
                     className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
                   >
@@ -192,6 +207,33 @@ export function ProjectSetup() {
           </button>
         )}
       </div>
+
+      <div className="mt-auto py-6">
+        <a
+          href="https://github.com/AtotheY/kodejam"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+          </svg>
+          GitHub
+        </a>
+      </div>
+
+      {deleteTarget && (
+        <ConfirmDialog
+          title="Delete project"
+          message={`Are you sure you want to delete "${deleteTarget.name}"? This cannot be undone.`}
+          confirmLabel="Delete"
+          onConfirm={() => {
+            deleteProject(deleteTarget.id)
+            setDeleteTarget(null)
+          }}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
     </div>
   )
 }

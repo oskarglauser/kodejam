@@ -275,6 +275,7 @@ export function Layout() {
         {/* Chat Panel — inline beside canvas */}
         {chatOpen && currentProject && currentPage && (
           <ChatPanel
+            key={currentPage.id}
             selectedShapes={selectedShapes}
             repoPath={currentProject.repo_path}
             pageName={currentPage.name}

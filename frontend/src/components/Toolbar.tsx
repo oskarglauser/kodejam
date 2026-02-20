@@ -3,6 +3,7 @@ import { useUIStore } from '../stores/uiStore'
 import { useProjectStore } from '../stores/projectStore'
 import { useNavigate } from 'react-router-dom'
 import { ProjectSettingsModal } from '../features/project/ProjectSettingsModal'
+import { HelpModal } from './HelpModal'
 import { IconButton } from './ui/icon-button'
 import type { ExcalidrawImperativeAPI } from '../canvas/Canvas'
 
@@ -12,11 +13,12 @@ interface ToolbarProps {
 
 export function Toolbar({ excalidrawAPI }: ToolbarProps) {
   const { currentProject, updateProject } = useProjectStore()
-  const { viewMode, setViewMode, chatOpen, toggleChat, historyOpen, toggleHistory, showSettings, setShowSettings } = useUIStore()
+  const { chatOpen, toggleChat, historyOpen, toggleHistory, showSettings, setShowSettings } = useUIStore()
   const navigate = useNavigate()
   const [isRenaming, setIsRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState('')
   const [zoomLevel, setZoomLevel] = useState(100)
+  const [showHelp, setShowHelp] = useState(false)
 
   // Track zoom level from Excalidraw
   useEffect(() => {
@@ -144,27 +146,7 @@ export function Toolbar({ excalidrawAPI }: ToolbarProps) {
           </div>
         )}
 
-        {/* View toggle */}
-        <div className="flex items-center bg-secondary rounded-lg p-0.5 mr-3">
-          <button
-            onClick={() => setViewMode('sketch')}
-            className={`px-3 py-1.5 text-[12px] font-medium rounded-md transition-all duration-150 ${
-              viewMode === 'sketch' ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Sketch
-          </button>
-          <button
-            onClick={() => setViewMode('built')}
-            className={`px-3 py-1.5 text-[12px] font-medium rounded-md transition-all duration-150 ${
-              viewMode === 'built' ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Built
-          </button>
-        </div>
-
-        {/* Right-side icon buttons: History, Settings, Chat */}
+        {/* Right-side icon buttons: History, Help, Settings, Chat */}
         <div className="flex items-center gap-1">
           <IconButton
             variant={historyOpen ? 'active' : 'ghost'}
@@ -174,6 +156,18 @@ export function Toolbar({ excalidrawAPI }: ToolbarProps) {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </IconButton>
+
+          <IconButton
+            variant="ghost"
+            onClick={() => setShowHelp(true)}
+            title="Help"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <path d="M12 17h.01" />
             </svg>
           </IconButton>
 
@@ -203,6 +197,7 @@ export function Toolbar({ excalidrawAPI }: ToolbarProps) {
       </header>
 
       {showSettings && <ProjectSettingsModal onClose={() => setShowSettings(false)} excalidrawAPI={excalidrawAPI} />}
+      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
     </>
   )
 }

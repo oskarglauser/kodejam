@@ -3,6 +3,7 @@ import { useProjectStore } from '../stores/projectStore'
 import { api } from '../services/api'
 import { IconButton } from './ui/icon-button'
 import { Input } from './ui/input'
+import { ConfirmDialog } from './ui/confirm-dialog'
 
 export function Sidebar() {
   const { pages, currentPage, currentProject, setCurrentPage, createPage, deletePage, updatePage } = useProjectStore()
@@ -12,6 +13,7 @@ export function Sidebar() {
   const [renameValue, setRenameValue] = useState('')
   const [scanning, setScanning] = useState(false)
   const [menuPageId, setMenuPageId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
   const handleAddPage = async () => {
@@ -206,7 +208,7 @@ export function Sidebar() {
                   onClick={(e) => {
                     e.stopPropagation()
                     setMenuPageId(null)
-                    if (confirm(`Delete "${page.name}"?`)) deletePage(page.id)
+                    setDeleteTarget({ id: page.id, name: page.name })
                   }}
                   className="w-full flex items-center gap-2 px-3 py-2 text-xs text-destructive hover:bg-destructive/10"
                 >
@@ -225,6 +227,20 @@ export function Sidebar() {
           <p className="px-4 py-8 text-xs text-muted-foreground text-center">No pages yet. Click + to create one.</p>
         )}
       </nav>
+
+      {deleteTarget && (
+        <ConfirmDialog
+          title="Delete page"
+          message={`Are you sure you want to delete "${deleteTarget.name}"? This cannot be undone.`}
+          confirmLabel="Delete"
+          onConfirm={async () => {
+            const id = deleteTarget.id
+            setDeleteTarget(null)
+            await deletePage(id)
+          }}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
     </aside>
   )
 }
